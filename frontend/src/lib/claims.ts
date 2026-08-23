@@ -72,9 +72,14 @@ export interface ListParams {
 function toQueryString(p: ListParams): string {
   const qs = new URLSearchParams();
   Object.entries(p).forEach(([k, v]) => {
-    if (v !== undefined && v !== "" && v !== null) qs.set(k, String(v));
+    if (v !== undefined && v !== "" && v !== null) qs.set(k, k === "status" ? String(v).toUpperCase() : String(v));
   });
   return qs.toString();
+}
+
+// Backend stores claim status UPPERCASE; the UI works in lowercase.
+function normClaim<T extends Claim>(c: T): T {
+  return { ...c, status: String(c.status).toLowerCase() };
 }
 
 // --- claims ---
@@ -97,7 +102,7 @@ export function useClaims(params: ListParams) {
       const res = await api.get<{ data: FlatList }>(`/reimbursements?${toQueryString(params)}`);
       const d = res.data.data;
       return {
-        items: d.items ?? [],
+        items: (d.items ?? []).map(normClaim),
         meta: { page: d.page, limit: d.limit, total: d.total, total_pages: d.total_pages },
       };
     },
@@ -111,7 +116,7 @@ export function useClaim(id: string | undefined) {
     enabled: !!id,
     queryFn: async () => {
       const res = await api.get<{ data: ClaimDetail }>(`/reimbursements/${id}`);
-      return res.data.data;
+      return normClaim(res.data.data);
     },
   });
 }

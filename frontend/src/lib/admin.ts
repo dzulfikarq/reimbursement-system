@@ -115,7 +115,7 @@ export function useUsers(page = 1, search = "") {
     queryFn: async () => {
       const qs = new URLSearchParams({ page: String(page), limit: "10" });
       if (search) qs.set("search", search);
-      const res = await api.get<{ data: UsersPage }>(`/admin/users?${qs.toString()}`);
+      const res = await api.get<{ data: UsersPage }>(`/users?${qs.toString()}`);
       return res.data.data;
     },
   });
