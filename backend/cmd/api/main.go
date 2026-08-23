@@ -125,8 +125,10 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	usermod.RegisterRoutes(v1, usermod.NewHandler(usermod.NewService(usermod.NewRepository(db))), authn, adminOnly)
 
 	reimbStore := reimbmod.NewAttachmentStore(mc, presignClient(cfg, slog.Default()), cfg.MinioBucket)
+	reimbRepo := reimbmod.NewRepository(db)
+	reimbSvc := reimbmod.NewService(reimbRepo)
 	reimbmod.RegisterRoutes(v1,
-		reimbmod.NewHandler(reimbmod.NewService(reimbmod.NewRepository(db)), reimbStore), authn)
+		reimbmod.NewHandler(reimbSvc, reimbmod.NewWorkflowService(cfg, reimbRepo, db), reimbStore), authn)
 
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,

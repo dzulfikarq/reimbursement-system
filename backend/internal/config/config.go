@@ -40,6 +40,14 @@ type Config struct {
 	AccessTTL   time.Duration
 	RefreshTTL  time.Duration
 	CookieSecure bool
+
+	// Approval matrix tiers (docs/02): amount <= T1 -> manager only;
+	// <= T2 -> manager+finance; > T2 -> +admin.
+	ApprovalT1 string
+	ApprovalT2 string
+
+	// Receipt required above this amount (docs/02 rule 3).
+	ReceiptThreshold string
 }
 
 func Load() *Config {
@@ -73,6 +81,10 @@ func Load() *Config {
 		AccessTTL: 15 * time.Minute,
 		RefreshTTL: 7 * 24 * time.Hour,
 		CookieSecure: os.Getenv("COOKIE_SECURE") == "true",
+
+		ApprovalT1:       getEnv("APPROVAL_TIER_1", "500000"),
+		ApprovalT2:       getEnv("APPROVAL_TIER_2", "5000000"),
+		ReceiptThreshold: getEnv("RECEIPT_THRESHOLD", "500000"),
 	}
 }
 

@@ -13,11 +13,12 @@ import (
 
 type Handler struct {
 	svc   *Service
+	wf    *WorkflowService
 	store *AttachmentStore
 }
 
-func NewHandler(svc *Service, store *AttachmentStore) *Handler {
-	return &Handler{svc: svc, store: store}
+func NewHandler(svc *Service, wf *WorkflowService, store *AttachmentStore) *Handler {
+	return &Handler{svc: svc, wf: wf, store: store}
 }
 
 // RegisterRoutes wires claim endpoints. All require authentication; scope +
@@ -30,6 +31,11 @@ func RegisterRoutes(v1 *gin.RouterGroup, h *Handler, authn gin.HandlerFunc) {
 	g.PATCH("/:id", h.Update)
 	g.DELETE("/:id", h.Delete)
 	g.POST("/:id/attachments", h.UploadAttachment)
+	g.POST("/:id/submit", h.Submit)
+	g.POST("/:id/approve", h.Approve)
+	g.POST("/:id/reject", h.Reject)
+	g.POST("/:id/cancel", h.Cancel)
+	g.POST("/:id/pay", h.Pay)
 
 	v1.GET("/attachments/:id/download", authn, h.DownloadAttachment)
 }
@@ -245,7 +251,128 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 	response.Created(c, res, "Receipt attached")
 }
 
-// DownloadAttachment godoc
+// Submit godoc
+// @Summary Submit claim — full policy check, generates approval steps
+// @Tags reimbursements
+// @Success 200 {object} response.Envelope
+// @Failure 409 {object} response.Envelope "DUPLICATE_SUSPECTED / state conflict"
+// @Failure 422 {object} response.Envelope "BUSINESS_RULE_VIOLATED with all violations"
+// @Router /reimbursements/{id}/submit [post]
+func (h *Handler) Submit(c *gin.Context) {
+	role, userID, deptID, ok := identity(c)
+	if !ok {
+		return
+	}
+	id, valid := parseID(c)
+	if !valid {
+		response.Err(c, apperr.NotFound("Claim not found"))
+		return
+	}
+	res, err := h.wf.Submit(c.Request.Context(), id, role, userID, deptID)
+	if err != nil {
+		response.Err(c, err)
+		return
+	}
+	response.OK(c, res, "Claim submitted")
+}
+
+// Approve godoc
+// @Summary Approve current pending step (role must match; sequential)
+// @Tags reimbursements
+// @Success 200 {object} response.Envelope
+// @Router /reimbursements/{id}/approve [post]
+func (h *Handler) Approve(c *gin.Context) {
+	role, userID, deptID, ok := identity(c)
+	if !ok {
+		return
+	}
+	id, valid := parseID(c)
+	if !valid {
+		response.Err(c, apperr.NotFound("Claim not found"))
+		return
+	}
+	res, err := h.wf.Approve(c.Request.Context(), id, role, userID, deptID)
+	if err != nil {
+		response.Err(c, err)
+		return
+	}
+	response.OK(c, res, "Claim approved")
+}
+
+// Reject godoc
+// @Summary Reject — note required
+// @Tags reimbursements
+// @Accept json
+// @Success 200 {object} response.Envelope
+// @Router /reimbursements/{id}/reject [post]
+func (h *Handler) Reject(c *gin.Context) {
+	role, userID, deptID, ok := identity(c)
+	if !ok {
+		return
+	}
+	id, valid := parseID(c)
+	if !valid {
+		response.Err(c, apperr.NotFound("Claim not found"))
+		return
+	}
+	var req RejectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err) // binding error surfaces note requirement via validator
+		return
+	}
+	res, err := h.wf.Reject(c.Request.Context(), id, role, userID, deptID, req.Note)
+	if err != nil {
+		response.Err(c, err)
+		return
+	}
+	response.OK(c, res, "Claim rejected")
+}
+
+// Cancel godoc
+// @Summary Cancel own SUBMITTED claim before any approval acted → CANCELLED
+// @Tags reimbursements
+// @Success 200 {object} response.Envelope
+// @Router /reimbursements/{id}/cancel [post]
+func (h *Handler) Cancel(c *gin.Context) {
+	role, userID, deptID, ok := identity(c)
+	if !ok {
+		return
+	}
+	id, valid := parseID(c)
+	if !valid {
+		response.Err(c, apperr.NotFound("Claim not found"))
+		return
+	}
+	res, err := h.wf.Cancel(c.Request.Context(), id, role, userID, deptID)
+	if err != nil {
+		response.Err(c, err)
+		return
+	}
+	response.OK(c, res, "Claim cancelled")
+}
+
+// Pay godoc
+// @Summary Mark APPROVED claim as PAID (Finance only)
+// @Tags reimbursements
+// @Success 200 {object} response.Envelope
+// @Router /reimbursements/{id}/pay [post]
+func (h *Handler) Pay(c *gin.Context) {
+	role, _, _, ok := identity(c)
+	if !ok {
+		return
+	}
+	id, valid := parseID(c)
+	if !valid {
+		response.Err(c, apperr.NotFound("Claim not found"))
+		return
+	}
+	res, err := h.wf.Pay(c.Request.Context(), id, role)
+	if err != nil {
+		response.Err(c, err)
+		return
+	}
+	response.OK(c, res, "Claim paid")
+}
 // @Summary Presigned download URL (302, 60 s TTL; scope-checked)
 // @Tags attachments
 // @Success 302 {string} 302 "redirect to MinIO"

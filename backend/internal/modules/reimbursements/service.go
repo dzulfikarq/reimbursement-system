@@ -3,7 +3,6 @@ package reimbursements
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,33 +51,12 @@ func (s *Service) GetDetail(ctx context.Context, id uuid.UUID, role string, user
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
+	steps, err := s.repo.ApprovalsFor(ctx, id)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
 
-	detail := &DetailResponse{
-		ReimbursementResponse: toResponse(&row.Reimbursement, row.EmployeeName, row.CategoryName, row.CategoryCode),
-		Items:                 make([]ItemResponse, 0, len(itemRows)),
-		Attachments:           make([]AttachmentResponse, 0, len(attRows)),
-	}
-	for _, it := range itemRows {
-		up := json.Number(it.UnitPrice)
-		lt := json.Number(it.LineTotal)
-		detail.Items = append(detail.Items, ItemResponse{
-			ID:          it.ID.String(),
-			Description: it.Description,
-			Quantity:    it.Quantity,
-			UnitPrice:   &up,
-			LineTotal:   &lt,
-		})
-	}
-	for _, a := range attRows {
-		detail.Attachments = append(detail.Attachments, AttachmentResponse{
-			ID:               a.ID.String(),
-			OriginalFilename: a.OriginalFilename,
-			MimeType:         a.MimeType,
-			SizeBytes:        a.SizeBytes,
-			CreatedAt:        a.CreatedAt.UTC().Format(time.RFC3339),
-		})
-	}
-	return detail, nil
+	return buildDetail(row, itemRows, attRows, steps), nil
 }
 
 // Create stores a DRAFT with server-computed amount (Σ qty × unit_price done
@@ -166,14 +144,6 @@ func validateExpenseDate(raw string) (time.Time, error) {
 	return d, nil
 }
 
-func normDesc(s string) any {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
 func toResponse(r *Reimbursement, employeeName, categoryName, categoryCode string) ReimbursementResponse {
 	desc := ""
 	if r.Description != nil {
@@ -195,4 +165,44 @@ func toResponse(r *Reimbursement, employeeName, categoryName, categoryCode strin
 		CreatedAt:    r.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:    r.UpdatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+// buildDetail assembles the full detail payload shared by scoped reads and
+// post-workflow fresh reads.
+func buildDetail(row *detailRow, items []ItemRow, atts []AttachmentRow, steps []ApprovalStep) *DetailResponse {
+	detail := &DetailResponse{
+		ReimbursementResponse: toResponse(&row.Reimbursement, row.EmployeeName, row.CategoryName, row.CategoryCode),
+		Items:                 make([]ItemResponse, 0, len(items)),
+		Attachments:           make([]AttachmentResponse, 0, len(atts)),
+		Approvals:             make([]ApprovalStepResponse, 0, len(steps)),
+	}
+	for _, it := range items {
+		up := json.Number(it.UnitPrice)
+		lt := json.Number(it.LineTotal)
+		detail.Items = append(detail.Items, ItemResponse{
+			ID:          it.ID.String(),
+			Description: it.Description,
+			Quantity:    it.Quantity,
+			UnitPrice:   &up,
+			LineTotal:   &lt,
+		})
+	}
+	for _, a := range atts {
+		detail.Attachments = append(detail.Attachments, AttachmentResponse{
+			ID:               a.ID.String(),
+			OriginalFilename: a.OriginalFilename,
+			MimeType:         a.MimeType,
+			SizeBytes:        a.SizeBytes,
+			CreatedAt:        a.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+	for _, st := range steps {
+		detail.Approvals = append(detail.Approvals, ApprovalStepResponse{
+			StepNumber:   st.StepNumber,
+			ApproverRole: st.ApproverRole,
+			Status:       st.Status,
+			Note:         st.Note,
+		})
+	}
+	return detail
 }

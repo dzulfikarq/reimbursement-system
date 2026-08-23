@@ -37,11 +37,12 @@ type detailRow struct {
 	EmployeeName  string
 	CategoryName  string
 	CategoryCode  string
+	SubmitterRole string
 }
 
 func baseQuery(db *gorm.DB) *gorm.DB {
 	return db.Model(&detailRow{}).
-		Select("reimbursements.*", "users.name AS employee_name",
+		Select("reimbursements.*", "users.name AS employee_name", "users.role AS submitter_role",
 			"categories.name AS category_name", "categories.code AS category_code").
 		Joins("JOIN users ON users.id = reimbursements.employee_id").
 		Joins("JOIN categories ON categories.id = reimbursements.category_id").
@@ -303,4 +304,101 @@ func deref(v *uuid.UUID) uuid.UUID {
 		return uuid.Nil
 	}
 	return *v
+}
+
+// --- policy engine queries ---
+
+func (r *Repository) CountAttachments(ctx context.Context, reimbID uuid.UUID) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Table("attachments").
+		Where("reimbursement_id = ?", reimbID).Count(&n).Error
+	return n, err
+}
+
+// CategoryMonthlyLimit returns the limit and whether one is set.
+func (r *Repository) CategoryMonthlyLimit(ctx context.Context, catID uuid.UUID) (string, bool, error) {
+	var lim *string
+	err := r.db.WithContext(ctx).Raw(
+		"SELECT monthly_limit_per_employee FROM categories WHERE id = ? AND is_active = TRUE", catID).
+		Scan(&lim).Error
+	if err != nil || lim == nil {
+		return "", false, err
+	}
+	return *lim, true, nil
+}
+
+// MonthlyCategorySpend sums the employee's non-rejected claims in the same
+// calendar month + category, excluding this claim itself.
+func (r *Repository) MonthlyCategorySpend(ctx context.Context, empID, catID uuid.UUID, expenseDate time.Time, excludeID uuid.UUID) (string, error) {
+	var spent *string
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(SUM(amount)::text, '0')
+		FROM reimbursements
+		WHERE employee_id = ? AND category_id = ?
+		  AND status IN ('SUBMITTED', 'APPROVED', 'PAID')
+		  AND date_trunc('month', expense_date) = date_trunc('month', ?::date)
+		  AND id <> ? AND deleted_at IS NULL`,
+		empID, catID, expenseDate.Format("2006-01-02"), excludeID).Scan(&spent).Error
+	if err != nil {
+		return "", err
+	}
+	if spent == nil {
+		return "0", nil
+	}
+	return *spent, nil
+}
+
+// FindDuplicate: same employee + same amount + expense_date within ±7 days of
+// a non-rejected/non-cancelled claim. Returns conflicting claim's date.
+func (r *Repository) FindDuplicate(ctx context.Context, empID uuid.UUID, amount string, expenseDate time.Time, excludeID uuid.UUID) (string, error) {
+	var dup *string
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT to_char(expense_date, 'YYYY-MM-DD')
+		FROM reimbursements
+		WHERE employee_id = ? AND amount = ? AND id <> ? AND deleted_at IS NULL
+		  AND status NOT IN ('REJECTED', 'CANCELLED')
+		  AND expense_date BETWEEN ?::date - INTERVAL '7 days' AND ?::date + INTERVAL '7 days'
+		ORDER BY created_at ASC LIMIT 1`,
+		empID, amount, excludeID,
+		expenseDate.Format("2006-01-02"), expenseDate.Format("2006-01-02")).Scan(&dup).Error
+	if err != nil || dup == nil {
+		return "", err
+	}
+	return *dup, nil
+}
+
+// GetDetailFresh re-reads everything for the workflow responses (actor just
+// changed state; scope already enforced at action time).
+func (r *Repository) GetDetailFresh(ctx context.Context, id uuid.UUID) (*DetailResponse, error) {
+	var row detailRow
+	err := baseQuery(r.db.WithContext(ctx)).Where("reimbursements.id = ?", id).First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperr.NotFound("Claim not found")
+	}
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	items, err := r.Items(ctx, id)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	atts, err := r.Attachments(ctx, id)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	steps, err := r.ApprovalsFor(ctx, id)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+
+	detail := buildDetail(&row, items, atts, steps)
+	return detail, nil
+}
+
+func (r *Repository) ApprovalsFor(ctx context.Context, reimbID uuid.UUID) ([]ApprovalStep, error) {
+	var rows []ApprovalStep
+	err := r.db.WithContext(ctx).
+		Where("reimbursement_id = ?", reimbID).
+		Order("step_number ASC").Find(&rows).Error
+	return rows, err
 }

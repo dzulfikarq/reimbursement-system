@@ -20,6 +20,10 @@ type CreateRequest struct {
 // consistent model for drafts).
 type UpdateRequest = CreateRequest
 
+type RejectRequest struct {
+	Note string `json:"note" binding:"required,min=3,max=1000"`
+}
+
 type ItemResponse struct {
 	ID          string       `json:"id"`
 	Description string       `json:"description"`
@@ -52,8 +56,16 @@ type ReimbursementResponse struct {
 	UpdatedAt    string       `json:"updated_at"`
 }
 
+type ApprovalStepResponse struct {
+	StepNumber   int     `json:"step_number"`
+	ApproverRole string  `json:"approver_role"`
+	Status       string  `json:"status"`
+	Note         *string `json:"note,omitempty"`
+}
+
 type DetailResponse struct {
 	ReimbursementResponse
-	Items       []ItemResponse        `json:"items"`
-	Attachments []AttachmentResponse  `json:"attachments"`
+	Items       []ItemResponse         `json:"items"`
+	Attachments []AttachmentResponse   `json:"attachments"`
+	Approvals   []ApprovalStepResponse `json:"approvals"`
 }
