@@ -5,7 +5,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/api ./cmd/api \
- && CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/migrate ./cmd/migrate
+ && CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/migrate ./cmd/migrate \
+ && CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/worker ./cmd/worker
 
 # --- run ---
 FROM alpine:3.20
@@ -13,5 +14,6 @@ RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app
 USER app
 COPY --from=build /out/api /usr/local/bin/api
 COPY --from=build /out/migrate /usr/local/bin/migrate
+COPY --from=build /out/worker /usr/local/bin/worker
 EXPOSE 8080
 ENTRYPOINT ["api"]

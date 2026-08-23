@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -22,6 +23,7 @@ import (
 	authmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/auth"
 	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
 	dashmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/dashboard"
+	reportmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reports"
 	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
 	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
 	reimbmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reimbursements"
@@ -128,10 +130,17 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	reimbStore := reimbmod.NewAttachmentStore(mc, presignClient(cfg, slog.Default()), cfg.MinioBucket)
 	reimbRepo := reimbmod.NewRepository(db)
 	reimbSvc := reimbmod.NewService(reimbRepo)
+
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisAddr})
+
 	reimbmod.RegisterRoutes(v1,
-		reimbmod.NewHandler(reimbSvc, reimbmod.NewWorkflowService(cfg, reimbRepo, db), reimbStore), authn)
+		reimbmod.NewHandler(reimbSvc, reimbmod.NewWorkflowService(cfg, reimbRepo, db, asynqClient), reimbStore), authn)
 
 	dashmod.RegisterRoutes(v1, dashmod.NewHandler(dashmod.NewService(dashmod.NewRepository(db), rdb)), authn)
+
+	reportmod.RegisterRoutes(v1,
+		reportmod.NewHandler(reportmod.NewService(asynqClient, rdb), presignClient(cfg, slog.Default()), "exports"),
+		authn, middleware.RequireRole("finance", "admin"))
 
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,

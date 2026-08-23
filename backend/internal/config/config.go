@@ -31,6 +31,7 @@ type Config struct {
 	MinioUseSSL   bool
 	// Host clients use for presigned URLs (defaults to MinioEndpoint).
 	MinioPublicEndpoint string
+SMTPAddr        string
 
 	MigrateOnStart bool
 
@@ -72,6 +73,7 @@ func Load() *Config {
 		MinioBucket:    getEnv("MINIO_BUCKET", "receipts"),
 		MinioUseSSL:    getEnvBool("MINIO_USE_SSL", false),
 		MinioPublicEndpoint: getEnv("MINIO_PUBLIC_ENDPOINT", getEnv("MINIO_ENDPOINT", "minio:9000")),
+	SMTPAddr:            getEnv("SMTP_ADDR", "mailhog:1025"),
 
 		MigrateOnStart: getEnvBool("MIGRATE_ON_START", true),
 

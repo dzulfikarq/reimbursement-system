@@ -2,15 +2,20 @@ package reimbursements
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	gormclause "gorm.io/gorm/clause"
 	"gorm.io/gorm"
 
 	"github.com/mumtaz/reimbursement-system/backend/internal/config"
 	"github.com/mumtaz/reimbursement-system/backend/internal/modules/audit"
+	"github.com/mumtaz/reimbursement-system/backend/internal/modules/tasks"
 	apperr "github.com/mumtaz/reimbursement-system/backend/internal/pkg/apperr"
 )
 
@@ -33,13 +38,37 @@ func (ApprovalStep) TableName() string { return "approvals" }
 // concurrent double-actions serialize instead of corrupting state (AGENTS.md
 // non-negotiable #8).
 type WorkflowService struct {
-	cfg  *config.Config
-	repo *Repository
-	db   *gorm.DB
+	cfg   *config.Config
+	repo  *Repository
+	db    *gorm.DB
+	queue *asynq.Client
 }
 
-func NewWorkflowService(cfg *config.Config, repo *Repository, db *gorm.DB) *WorkflowService {
-	return &WorkflowService{cfg: cfg, repo: repo, db: db}
+func NewWorkflowService(cfg *config.Config, repo *Repository, db *gorm.DB, queue *asynq.Client) *WorkflowService {
+	return &WorkflowService{cfg: cfg, repo: repo, db: db, queue: queue}
+}
+
+// notifyEmployee enqueues a post-commit notification email (docs FR-8).
+// Best-effort: enqueue failures are logged, never fail the business action.
+// ponytail: post-commit enqueue, outbox row if durability matters.
+func (w *WorkflowService) notifyEmployee(ctx context.Context, claimID uuid.UUID, action string) {
+	var to, title, amount string
+	err := w.db.WithContext(ctx).Raw(
+		`SELECT u.email, r.title, r.amount::text FROM users u JOIN reimbursements r ON r.employee_id = u.id WHERE r.id = ?`,
+		claimID).Row().Scan(&to, &title, &amount)
+	if err != nil {
+		slog.WarnContext(ctx, "notify_lookup_failed", "claim_id", claimID, "error", err)
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"to":      to,
+		"subject": "[" + action + "] Reimbursement claim: " + title,
+		"body":    "Your claim \"" + title + "\" (Rp " + amount + ") was " + strings.ToLower(action) + ".",
+	})
+	if _, err := w.queue.EnqueueContext(ctx, asynq.NewTask(tasks.TypeEmailSend, payload),
+		asynq.MaxRetry(3)); err != nil {
+		slog.WarnContext(ctx, "notify_enqueue_failed", "claim_id", claimID, "error", err)
+	}
 }
 
 // Submit runs the full policy engine then flips DRAFT/REJECTED → SUBMITTED,
@@ -140,6 +169,9 @@ func (w *WorkflowService) Submit(ctx context.Context, id uuid.UUID, role string,
 		audit.Write(tx, userID, audit.ActionSubmitClaim, "reimbursement", id, map[string]any{"amount": current.Amount})
 		return nil
 	})
+	if err == nil {
+		w.notifyEmployee(ctx, id, "SUBMITTED")
+	}
 	return finishTx(w.repo, ctx, id, err)
 }
 
@@ -243,6 +275,7 @@ func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole st
 	if bizErr != nil {
 		return nil, bizErr
 	}
+	w.notifyEmployee(ctx, id, map[string]string{"approved": "APPROVED", "rejected": "REJECTED"}[action])
 	return w.repo.GetDetailFresh(ctx, id)
 }
 
@@ -282,6 +315,7 @@ func (w *WorkflowService) Cancel(ctx context.Context, id uuid.UUID, role string,
 	if bizErr != nil {
 		return nil, bizErr
 	}
+	w.notifyEmployee(ctx, id, "CANCELLED")
 	return w.repo.GetDetailFresh(ctx, id)
 }
 
@@ -314,6 +348,7 @@ func (w *WorkflowService) Pay(ctx context.Context, id uuid.UUID, role string, us
 	if bizErr != nil {
 		return nil, bizErr
 	}
+	w.notifyEmployee(ctx, id, "PAID")
 	return w.repo.GetDetailFresh(ctx, id)
 }
 

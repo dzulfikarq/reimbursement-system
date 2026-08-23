@@ -82,6 +82,27 @@ services:
       minio:
         condition: service_healthy
 
+  worker:
+    build: ./backend
+    entrypoint: ["worker"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-reimbursement}
+      DB_PASSWORD: ${DB_PASSWORD:-reimbursement}
+      DB_NAME: ${DB_NAME:-reimbursement}
+      DB_SSLMODE: disable
+      REDIS_ADDR: redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      SMTP_ADDR: mailhog:1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   web:
     build: ./frontend
     ports:
