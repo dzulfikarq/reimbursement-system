@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 // Config holds all runtime configuration, sourced exclusively from environment
@@ -32,6 +33,11 @@ type Config struct {
 	MigrateOnStart bool
 
 	FrontendURL string
+
+	AppSecret   string
+	AccessTTL   time.Duration
+	RefreshTTL  time.Duration
+	CookieSecure bool
 }
 
 func Load() *Config {
@@ -59,6 +65,11 @@ func Load() *Config {
 		MigrateOnStart: getEnvBool("MIGRATE_ON_START", true),
 
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+
+		AppSecret: getEnv("APP_SECRET", "dev-only-secret-change-me"),
+		AccessTTL: 15 * time.Minute,
+		RefreshTTL: 7 * 24 * time.Hour,
+		CookieSecure: os.Getenv("COOKIE_SECURE") == "true",
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/mumtaz/reimbursement-system/backend/internal/config"
 	"github.com/mumtaz/reimbursement-system/backend/internal/database"
 	healthmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/health"
+	authmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/auth"
 	"github.com/mumtaz/reimbursement-system/backend/internal/middleware"
 )
 
@@ -66,7 +67,6 @@ func main() {
 		os.Exit(1)
 	}
 	ensureBucket(context.Background(), mc, cfg, logger)
-
 	router := buildRouter(cfg, db, rdb, mc)
 
 	srv := &http.Server{
@@ -100,11 +100,19 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	r := gin.New()
 	r.Use(
 		middleware.RequestID(),
+		middleware.ErrorHandler(),
 		middleware.SecurityHeaders(),
 		middleware.CORS(cfg.FrontendURL),
 		middleware.Recover(slog.Default()),
 		middleware.Logger(slog.Default()),
+		middleware.CSRF(cfg.AppSecret),
 	)
+
+	v1 := r.Group("/api/v1")
+
+	authRepo := authmod.NewRepository(db)
+	authSvc := authmod.NewService(cfg, authRepo, authmod.NewSessionStore(rdb, cfg.RefreshTTL))
+	authmod.NewHandler(cfg, authSvc).RegisterRoutes(v1)
 
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,

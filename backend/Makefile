@@ -22,7 +22,7 @@ migrate-down:
 	go run ./cmd/migrate -direction down -steps 1
 
 seed:
-	@echo "seed arrives in M2"
+	go run ./seeds
 
 swagger:
 	swag init -g cmd/api/main.go -o docs --parseDependency

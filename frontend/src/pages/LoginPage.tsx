@@ -1,19 +1,55 @@
-import { useState, type FormEvent } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+import { AxiosError } from "axios";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import FormField from "../components/ui/FormField";
-import { ReceiptText } from "lucide-react";
+import { useAuthStore } from "../stores/auth";
+import type { ApiErrorBody } from "../lib/api";
+import { ReceiptText, AlertCircle } from "lucide-react";
 
-// Placeholder login — real auth flow (cookies + CSRF + validation) in M1.
+const loginSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const login = useAuthStore((s) => s.login);
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    navigate("/");
+  const onSubmit = async (values: LoginForm) => {
+    try {
+      await login(values.email, values.password);
+      navigate("/", { replace: true });
+    } catch (err) {
+      if (err instanceof AxiosError && err.response?.data) {
+        const body = err.response.data as ApiErrorBody;
+        // Map backend 422 details onto fields; otherwise surface message.
+        if (body.details?.length) {
+          for (const d of body.details) {
+            const field = d.field.toLowerCase() as keyof LoginForm;
+            if (field in values) setError(field, { message: d.message });
+          }
+        } else {
+          setError("root", { message: body.message ?? "Login failed" });
+        }
+      } else {
+        setError("root", { message: "Network error — please try again" });
+      }
+    }
   };
 
   return (
@@ -32,32 +68,40 @@ export default function LoginPage() {
         </div>
 
         <form
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
           className="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-8"
         >
           <div className="space-y-5">
-            <FormField label="Email" htmlFor="email" required>
+            {errors.root?.message && (
+              <div className="flex items-start gap-2 rounded-lg bg-error-50 p-3 text-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {errors.root.message}
+              </div>
+            )}
+
+            <FormField label="Email" htmlFor="email" required error={errors.email?.message}>
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email")}
               />
             </FormField>
 
-            <FormField label="Password" htmlFor="password" required>
+            <FormField label="Password" htmlFor="password" required error={errors.password?.message}>
               <Input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password")}
               />
             </FormField>
 
-            <Button type="submit" className="w-full">
-              Sign In
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in…" : "Sign In"}
             </Button>
           </div>
         </form>

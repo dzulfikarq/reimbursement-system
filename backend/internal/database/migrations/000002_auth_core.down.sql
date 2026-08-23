@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS departments;
+DROP TYPE IF EXISTS user_role;
