@@ -20,6 +20,9 @@ import (
 	"github.com/mumtaz/reimbursement-system/backend/internal/database"
 	healthmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/health"
 	authmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/auth"
+	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
+	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
+	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
 	"github.com/mumtaz/reimbursement-system/backend/internal/middleware"
 )
 
@@ -109,10 +112,16 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	)
 
 	v1 := r.Group("/api/v1")
+	authn := middleware.AuthN(cfg.AppSecret)
+	adminOnly := middleware.RequireRole("admin")
 
 	authRepo := authmod.NewRepository(db)
 	authSvc := authmod.NewService(cfg, authRepo, authmod.NewSessionStore(rdb, cfg.RefreshTTL))
 	authmod.NewHandler(cfg, authSvc).RegisterRoutes(v1)
+
+	deptmod.RegisterRoutes(v1, deptmod.NewHandler(deptmod.NewService(deptmod.NewRepository(db))), authn, adminOnly)
+	catmod.RegisterRoutes(v1, catmod.NewHandler(catmod.NewService(catmod.NewRepository(db))), authn, adminOnly)
+	usermod.RegisterRoutes(v1, usermod.NewHandler(usermod.NewService(usermod.NewRepository(db))), authn, adminOnly)
 
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,
