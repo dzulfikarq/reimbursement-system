@@ -29,9 +29,10 @@ func NewHandler(cfg *config.Config, svc *Service) *Handler {
 }
 
 // RegisterRoutes wires /auth endpoints. AuthN is applied per-route (login and
-// refresh must stay public).
-func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
-	g := v1.Group("/auth")
+// refresh must stay public). guards applies rate limiting to credential
+// endpoints (login/refresh) — pass nil to skip.
+func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup, guard ...gin.HandlerFunc) {
+	g := v1.Group("/auth", guard...)
 	{
 		g.POST("/login", h.Login)
 		g.POST("/refresh", h.Refresh)
@@ -42,7 +43,18 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	}
 }
 
-// POST /auth/login
+// Login godoc
+// @Summary Log in
+// @Description Sets access/refresh/csrf cookies on success.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body LoginRequest true "Credentials"
+// @Success 200 {object} response.Envelope
+// @Failure 400 {object} response.Envelope
+// @Failure 401 {object} response.Envelope
+// @Failure 429 {object} response.Envelope
+// @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,7 +71,14 @@ func (h *Handler) Login(c *gin.Context) {
 	response.OK(c, gin.H{"user": user}, "Logged in")
 }
 
-// POST /auth/refresh — rotates tokens; old refresh becomes unusable.
+// Refresh godoc
+// @Summary Rotate session tokens
+// @Description Single-use refresh; old refresh token is revoked.
+// @Tags auth
+// @Produce json
+// @Success 200 {object} response.Envelope
+// @Failure 401 {object} response.Envelope
+// @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	refresh, _ := c.Cookie(refreshCookie)
 	if refresh == "" {
@@ -77,7 +96,12 @@ func (h *Handler) Refresh(c *gin.Context) {
 	response.OK(c, gin.H{"user": user}, "Session refreshed")
 }
 
-// POST /auth/logout — revokes the whole refresh chain + clears cookies.
+// Logout godoc
+// @Summary Log out
+// @Description Revokes the whole refresh chain and clears cookies.
+// @Tags auth
+// @Success 204 {object} response.Envelope
+// @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	refresh, _ := c.Cookie(refreshCookie)
 	if err := h.svc.Logout(c.Request.Context(), refresh); err != nil {
@@ -88,7 +112,13 @@ func (h *Handler) Logout(c *gin.Context) {
 	response.NoContent(c)
 }
 
-// GET /auth/me
+// Me godoc
+// @Summary Current user
+// @Tags auth
+// @Produce json
+// @Success 200 {object} response.Envelope
+// @Failure 401 {object} response.Envelope
+// @Router /auth/me [get]
 func (h *Handler) Me(c *gin.Context) {
 	userID, ok := c.Get(middleware.CtxUserID)
 	if !ok {
@@ -108,8 +138,13 @@ func (h *Handler) Me(c *gin.Context) {
 	response.OK(c, gin.H{"user": user}, "OK")
 }
 
-// GET /auth/csrf — fresh CSRF cookie for the SPA (e.g. after page reload with
-// a still-valid session but expired csrf cookie).
+// IssueCSRF godoc
+// @Summary Issue CSRF cookie
+// @Description Fresh CSRF token for the SPA after reload with expired csrf cookie.
+// @Tags auth
+// @Produce json
+// @Success 200 {object} response.Envelope
+// @Router /auth/csrf [get]
 func (h *Handler) IssueCSRF(c *gin.Context) {
 	token, err := csrftoken.Issue(h.cfg.AppSecret)
 	if err != nil {

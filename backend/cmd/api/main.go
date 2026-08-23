@@ -10,26 +10,23 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/hibiken/asynq"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"gorm.io/gorm"
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/mumtaz/reimbursement-system/backend/internal/config"
 	"github.com/mumtaz/reimbursement-system/backend/internal/database"
-	healthmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/health"
-	authmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/auth"
-	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
-	dashmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/dashboard"
-	reportmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reports"
-	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
-	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
-	reimbmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reimbursements"
-	"github.com/mumtaz/reimbursement-system/backend/internal/middleware"
+	"github.com/mumtaz/reimbursement-system/backend/internal/server"
 )
 
+// @title Reimbursement Management System API
+// @version 1.0
+// @description Take-home test, PT Mumtaz Teknologi Indonesia. Cookie-based auth: login via /auth/login, then use X-CSRF-Token header on mutations. Session cookies are HttpOnly — no bearer tokens.
+// @BasePath /api/v1
+//
+// @securityDefinitions.apikey CSRF
+// @in header
+// @name X-CSRF-Token
 func main() {
 	cfg := config.Load()
 
@@ -39,10 +36,6 @@ func main() {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
-
-	if cfg.Env != "development" {
-		gin.SetMode(gin.ReleaseMode)
-	}
 
 	db, err := database.Connect(cfg, logger)
 	if err != nil {
@@ -73,8 +66,8 @@ func main() {
 		logger.Error("minio_client_failed", "error", err)
 		os.Exit(1)
 	}
-	ensureBucket(context.Background(), mc, cfg, logger)
-	router := buildRouter(cfg, db, rdb, mc)
+	server.EnsureBucket(context.Background(), mc, cfg, logger)
+	router := server.New(cfg, db, rdb, mc)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -101,85 +94,4 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 	_ = database.Close(db)
-}
-
-func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio.Client) *gin.Engine {
-	r := gin.New()
-	r.Use(
-		middleware.RequestID(),
-		middleware.ErrorHandler(),
-		middleware.SecurityHeaders(),
-		middleware.CORS(cfg.FrontendURL),
-		middleware.Recover(slog.Default()),
-		middleware.Logger(slog.Default()),
-		middleware.CSRF(cfg.AppSecret),
-	)
-
-	v1 := r.Group("/api/v1")
-	authn := middleware.AuthN(cfg.AppSecret)
-	adminOnly := middleware.RequireRole("admin")
-
-	authRepo := authmod.NewRepository(db)
-	authSvc := authmod.NewService(cfg, authRepo, authmod.NewSessionStore(rdb, cfg.RefreshTTL))
-	authmod.NewHandler(cfg, authSvc).RegisterRoutes(v1)
-
-	deptmod.RegisterRoutes(v1, deptmod.NewHandler(deptmod.NewService(deptmod.NewRepository(db))), authn, adminOnly)
-	catmod.RegisterRoutes(v1, catmod.NewHandler(catmod.NewService(catmod.NewRepository(db))), authn, adminOnly)
-	usermod.RegisterRoutes(v1, usermod.NewHandler(usermod.NewService(usermod.NewRepository(db))), authn, adminOnly)
-
-	reimbStore := reimbmod.NewAttachmentStore(mc, presignClient(cfg, slog.Default()), cfg.MinioBucket)
-	reimbRepo := reimbmod.NewRepository(db)
-	reimbSvc := reimbmod.NewService(reimbRepo)
-
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisAddr})
-
-	reimbmod.RegisterRoutes(v1,
-		reimbmod.NewHandler(reimbSvc, reimbmod.NewWorkflowService(cfg, reimbRepo, db, asynqClient), reimbStore), authn)
-
-	dashmod.RegisterRoutes(v1, dashmod.NewHandler(dashmod.NewService(dashmod.NewRepository(db), rdb)), authn)
-
-	reportmod.RegisterRoutes(v1,
-		reportmod.NewHandler(reportmod.NewService(asynqClient, rdb), presignClient(cfg, slog.Default()), "exports"),
-		authn, middleware.RequireRole("finance", "admin"))
-
-	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
-		DB:          db,
-		Redis:       rdb,
-		Minio:       mc,
-		MinioBucket: cfg.MinioBucket,
-	}))
-
-	return r
-}
-
-func ensureBucket(ctx context.Context, mc *minio.Client, cfg *config.Config, logger *slog.Logger) {
-	exists, err := mc.BucketExists(ctx, cfg.MinioBucket)
-	if err != nil {
-		logger.Warn("minio_probe_failed", "error", err)
-		return
-	}
-	if !exists {
-		if err := mc.MakeBucket(ctx, cfg.MinioBucket, minio.MakeBucketOptions{}); err != nil {
-			logger.Warn("bucket_create_failed", "bucket", cfg.MinioBucket, "error", err)
-			return
-		}
-		logger.Info("bucket_created", "bucket", cfg.MinioBucket)
-	}
-}
-
-// presignClient signs URLs against the public-facing endpoint (defaults to the
-// internal one when MINIO_PUBLIC_ENDPOINT is unset). Region pinned so the SDK
-// skips its location probe — that would dial the public host from inside the
-// container and fail.
-func presignClient(cfg *config.Config, logger *slog.Logger) *minio.Client {
-	pc, err := minio.New(cfg.MinioPublicEndpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.MinioAccessKey, cfg.MinioSecretKey, ""),
-		Secure: cfg.MinioUseSSL,
-		Region: "us-east-1",
-	})
-	if err != nil {
-		logger.Error("minio_presign_client_failed", "error", err)
-		os.Exit(1)
-	}
-	return pc
 }

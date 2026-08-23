@@ -1,0 +1,639 @@
+basePath: /api/v1
+definitions:
+  github_com_mumtaz_reimbursement-system_backend_internal_pkg_apperr.Detail:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.ErrorBody'
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+    type: object
+  github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.ErrorBody:
+    properties:
+      code:
+        type: string
+      details:
+        items:
+          $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_apperr.Detail'
+        type: array
+      message:
+        type: string
+    type: object
+  internal_modules_auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+info:
+  contact: {}
+  description: 'Take-home test, PT Mumtaz Teknologi Indonesia. Cookie-based auth:
+    login via /auth/login, then use X-CSRF-Token header on mutations. Session cookies
+    are HttpOnly — no bearer tokens.'
+  title: Reimbursement Management System API
+  version: "1.0"
+paths:
+  /attachments/{id}/download:
+    get:
+      responses:
+        "302":
+          description: redirect to MinIO
+          schema:
+            type: string
+      summary: Presigned download URL (302, 60 s TTL; scope-checked)
+      tags:
+      - attachments
+  /auth/csrf:
+    get:
+      description: Fresh CSRF token for the SPA after reload with expired csrf cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Issue CSRF cookie
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Sets access/refresh/csrf cookies on success.
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Log in
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Revokes the whole refresh chain and clears cookies.
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Log out
+      tags:
+      - auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Current user
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      description: Single-use refresh; old refresh token is revoked.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Rotate session tokens
+      tags:
+      - auth
+  /categories:
+    get:
+      description: Admin sees inactive categories too; other roles active-only.
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Limit (max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Search name/code
+        in: query
+        name: search
+        type: string
+      - description: code | name | is_active | created_at
+        in: query
+        name: sort
+        type: string
+      - description: ASC | DESC
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: List categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Create category (admin)
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Delete category (admin) — blocked while referenced by claims
+      tags:
+      - categories
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Get category by ID
+      tags:
+      - categories
+    patch:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Update category (admin); code immutable
+      tags:
+      - categories
+  /dashboard/category-breakdown:
+    get:
+      parameters:
+      - description: YYYY-MM
+        in: query
+        name: month
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Per-category totals for a month (?month=YYYY-MM, default current)
+      tags:
+      - dashboard
+  /dashboard/monthly-trend:
+    get:
+      parameters:
+      - description: 1-24
+        in: query
+        name: months
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Claim totals for the last N months (?months=6, max 24)
+      tags:
+      - dashboard
+  /dashboard/summary:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: 'Role-scoped dashboard: pending count, monthly total, approval rate,
+        budget usage'
+      tags:
+      - dashboard
+  /departments:
+    get:
+      parameters:
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Limit (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Search by name
+        in: query
+        name: search
+        type: string
+      - description: name | created_at
+        in: query
+        name: sort
+        type: string
+      - description: ASC | DESC
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: List departments
+      tags:
+      - departments
+    post:
+      consumes:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Create department (admin)
+      tags:
+      - departments
+  /departments/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Delete department (admin) — blocked while referenced
+      tags:
+      - departments
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Get department by ID
+      tags:
+      - departments
+    patch:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Update department (admin)
+      tags:
+      - departments
+  /reimbursements:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Limit (max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Search title/description
+        in: query
+        name: search
+        type: string
+      - description: DRAFT | SUBMITTED | APPROVED | REJECTED | PAID | CANCELLED
+        in: query
+        name: status
+        type: string
+      - description: Category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: YYYY-MM-DD
+        in: query
+        name: date_from
+        type: string
+      - description: YYYY-MM-DD
+        in: query
+        name: date_to
+        type: string
+      - description: title | amount | status | expense_date | created_at
+        in: query
+        name: sort
+        type: string
+      - description: ASC | DESC
+        in: query
+        name: order
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: 'List claims (scoped: employee=own, manager=department, finance/admin=all)'
+      tags:
+      - reimbursements
+    post:
+      consumes:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Create DRAFT claim with items; amount computed server-side
+      tags:
+      - reimbursements
+  /reimbursements/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Delete own DRAFT claim → 204
+      tags:
+      - reimbursements
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Claim detail — items + attachment metadata (scope-checked)
+      tags:
+      - reimbursements
+    patch:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Edit own claim — DRAFT/REJECTED only; items replaced wholesale
+      tags:
+      - reimbursements
+  /reimbursements/{id}/approve:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Approve current pending step (role must match; sequential)
+      tags:
+      - reimbursements
+  /reimbursements/{id}/attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Upload receipt (multipart `file`, ≤5 MB, png/jpeg/webp/pdf by magic
+        bytes)
+      tags:
+      - reimbursements
+  /reimbursements/{id}/cancel:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Cancel own SUBMITTED claim before any approval acted → CANCELLED
+      tags:
+      - reimbursements
+  /reimbursements/{id}/pay:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Mark APPROVED claim as PAID (Finance only)
+      tags:
+      - reimbursements
+  /reimbursements/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Reject — note required
+      tags:
+      - reimbursements
+  /reimbursements/{id}/submit:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "409":
+          description: DUPLICATE_SUSPECTED / state conflict
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+        "422":
+          description: BUSINESS_RULE_VIOLATED with all violations
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Submit claim — full policy check, generates approval steps
+      tags:
+      - reimbursements
+  /reports/export:
+    get:
+      parameters:
+      - description: YYYY-MM
+        in: query
+        name: month
+        type: string
+      - description: claim status filter
+        in: query
+        name: status
+        type: string
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Queue async CSV export of claims (Finance/Admin only)
+      tags:
+      - reports
+  /reports/export/{jobId}:
+    get:
+      parameters:
+      - description: job id
+        in: path
+        name: jobId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Poll export job; returns download URL when done
+      tags:
+      - reports
+  /users:
+    get:
+      parameters:
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Limit (max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Search name/email
+        in: query
+        name: search
+        type: string
+      - description: employee | manager | finance | admin
+        in: query
+        name: role
+        type: string
+      - description: Department UUID
+        in: query
+        name: department_id
+        type: string
+      - description: name | email | role | is_active | created_at
+        in: query
+        name: sort
+        type: string
+      - description: ASC | DESC
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: List users (admin)
+    post:
+      consumes:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Create user with initial password (admin)
+      tags:
+      - users
+  /users/{id}:
+    patch:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Update user role/department/name/is_active (admin)
+      tags:
+      - users
+  /users/{id}/reset-password:
+    post:
+      consumes:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
+      summary: Reset user password (admin)
+      tags:
+      - users
+securityDefinitions:
+  CSRF:
+    in: header
+    name: X-CSRF-Token
+    type: apiKey
+swagger: "2.0"

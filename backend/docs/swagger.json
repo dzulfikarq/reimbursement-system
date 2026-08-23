@@ -1,0 +1,985 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Take-home test, PT Mumtaz Teknologi Indonesia. Cookie-based auth: login via /auth/login, then use X-CSRF-Token header on mutations. Session cookies are HttpOnly — no bearer tokens.",
+        "title": "Reimbursement Management System API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/attachments/{id}/download": {
+            "get": {
+                "tags": [
+                    "attachments"
+                ],
+                "summary": "Presigned download URL (302, 60 s TTL; scope-checked)",
+                "responses": {
+                    "302": {
+                        "description": "redirect to MinIO",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/csrf": {
+            "get": {
+                "description": "Fresh CSRF token for the SPA after reload with expired csrf cookie.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Issue CSRF cookie",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Sets access/refresh/csrf cookies on success.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Log in",
+                "parameters": [
+                    {
+                        "description": "Credentials",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_auth.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "description": "Revokes the whole refresh chain and clears cookies.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Log out",
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "description": "Single-use refresh; old refresh token is revoked.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Rotate session tokens",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories": {
+            "get": {
+                "description": "Admin sees inactive categories too; other roles active-only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "List categories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search name/code",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "code | name | is_active | created_at",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ASC | DESC",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Create category (admin)",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/{id}": {
+            "get": {
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Get category by ID",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Delete category (admin) — blocked while referenced by claims",
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Update category (admin); code immutable",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/category-breakdown": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Per-category totals for a month (?month=YYYY-MM, default current)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "YYYY-MM",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/monthly-trend": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Claim totals for the last N months (?months=6, max 24)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "1-24",
+                        "name": "months",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/summary": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Role-scoped dashboard: pending count, monthly total, approval rate, budget usage",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "departments"
+                ],
+                "summary": "List departments",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "name | created_at",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ASC | DESC",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "departments"
+                ],
+                "summary": "Create department (admin)",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/{id}": {
+            "get": {
+                "tags": [
+                    "departments"
+                ],
+                "summary": "Get department by ID",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "departments"
+                ],
+                "summary": "Delete department (admin) — blocked while referenced",
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "departments"
+                ],
+                "summary": "Update department (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements": {
+            "get": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "List claims (scoped: employee=own, manager=department, finance/admin=all)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search title/description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "DRAFT | SUBMITTED | APPROVED | REJECTED | PAID | CANCELLED",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category UUID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "YYYY-MM-DD",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "YYYY-MM-DD",
+                        "name": "date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "title | amount | status | expense_date | created_at",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ASC | DESC",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Create DRAFT claim with items; amount computed server-side",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}": {
+            "get": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Claim detail — items + attachment metadata (scope-checked)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Delete own DRAFT claim → 204",
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Edit own claim — DRAFT/REJECTED only; items replaced wholesale",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/approve": {
+            "post": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Approve current pending step (role must match; sequential)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/attachments": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Upload receipt (multipart `file`, ≤5 MB, png/jpeg/webp/pdf by magic bytes)",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Cancel own SUBMITTED claim before any approval acted → CANCELLED",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/pay": {
+            "post": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Mark APPROVED claim as PAID (Finance only)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/reject": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Reject — note required",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reimbursements/{id}/submit": {
+            "post": {
+                "tags": [
+                    "reimbursements"
+                ],
+                "summary": "Submit claim — full policy check, generates approval steps",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "DUPLICATE_SUSPECTED / state conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    },
+                    "422": {
+                        "description": "BUSINESS_RULE_VIOLATED with all violations",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/export": {
+            "get": {
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Queue async CSV export of claims (Finance/Admin only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "YYYY-MM",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "claim status filter",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/export/{jobId}": {
+            "get": {
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Poll export job; returns download URL when done",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "job id",
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "List users (admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search name/email",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "employee | manager | finance | admin",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Department UUID",
+                        "name": "department_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "name | email | role | is_active | created_at",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ASC | DESC",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Create user with initial password (admin)",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update user role/department/name/is_active (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/reset-password": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Reset user password (admin)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_mumtaz_reimbursement-system_backend_internal_pkg_apperr.Detail": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.ErrorBody"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.ErrorBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_apperr.Detail"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_auth.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "CSRF": {
+            "type": "apiKey",
+            "name": "X-CSRF-Token",
+            "in": "header"
+        }
+    }
+}
