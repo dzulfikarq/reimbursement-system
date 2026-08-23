@@ -13,13 +13,15 @@ interface TableBodyProps {
   className?: string;
 }
 interface TableRowProps {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 interface TableCellProps {
-  children: ReactNode;
+  children?: ReactNode;
   isHeader?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 // Ported from TailAdmin Table primitives. Header/row styling per TailAdmin
@@ -50,9 +52,10 @@ export function TableBody({ children, className = "" }: TableBodyProps) {
   return <tbody className={className}>{children}</tbody>;
 }
 
-export function TableRow({ children, className = "" }: TableRowProps) {
+export function TableRow({ children, className = "", onClick }: TableRowProps) {
   return (
     <tr
+      onClick={onClick}
       className={`border-b border-gray-100 last:border-0 hover:bg-gray-50/60 dark:border-white/[0.05] dark:hover:bg-white/[0.02] ${className}`}
     >
       {children}
@@ -64,10 +67,12 @@ export function TableCell({
   children,
   isHeader = false,
   className = "",
+  onClick,
 }: TableCellProps) {
   const CellTag = isHeader ? "th" : "td";
   return (
     <CellTag
+      onClick={onClick}
       className={`px-5 py-3.5 ${
         isHeader
           ? "text-left text-theme-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"

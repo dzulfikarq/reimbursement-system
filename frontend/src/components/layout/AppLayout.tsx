@@ -2,10 +2,11 @@ import { Outlet } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
+import Toaster from "../ui/Toaster";
 import { useUIStore } from "../../stores/ui";
 
 // Authenticated app shell (TailAdmin structure): fixed sidebar + sticky
-// header + scrollable content. Session wiring arrives in M1.
+// header + scrollable content.
 export default function AppLayout() {
   const expanded = useUIStore((s) => s.sidebarExpanded);
   return (
@@ -22,6 +23,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }
