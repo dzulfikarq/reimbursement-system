@@ -23,6 +23,7 @@ import (
 	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
 	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
 	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
+	reimbmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reimbursements"
 	"github.com/mumtaz/reimbursement-system/backend/internal/middleware"
 )
 
@@ -123,6 +124,10 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	catmod.RegisterRoutes(v1, catmod.NewHandler(catmod.NewService(catmod.NewRepository(db))), authn, adminOnly)
 	usermod.RegisterRoutes(v1, usermod.NewHandler(usermod.NewService(usermod.NewRepository(db))), authn, adminOnly)
 
+	reimbStore := reimbmod.NewAttachmentStore(mc, presignClient(cfg, slog.Default()), cfg.MinioBucket)
+	reimbmod.RegisterRoutes(v1,
+		reimbmod.NewHandler(reimbmod.NewService(reimbmod.NewRepository(db)), reimbStore), authn)
+
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,
 		Redis:       rdb,
@@ -146,4 +151,21 @@ func ensureBucket(ctx context.Context, mc *minio.Client, cfg *config.Config, log
 		}
 		logger.Info("bucket_created", "bucket", cfg.MinioBucket)
 	}
+}
+
+// presignClient signs URLs against the public-facing endpoint (defaults to the
+// internal one when MINIO_PUBLIC_ENDPOINT is unset). Region pinned so the SDK
+// skips its location probe — that would dial the public host from inside the
+// container and fail.
+func presignClient(cfg *config.Config, logger *slog.Logger) *minio.Client {
+	pc, err := minio.New(cfg.MinioPublicEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.MinioAccessKey, cfg.MinioSecretKey, ""),
+		Secure: cfg.MinioUseSSL,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		logger.Error("minio_presign_client_failed", "error", err)
+		os.Exit(1)
+	}
+	return pc
 }

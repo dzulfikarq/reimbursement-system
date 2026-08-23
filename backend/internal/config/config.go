@@ -29,6 +29,8 @@ type Config struct {
 	MinioSecretKey string
 	MinioBucket   string
 	MinioUseSSL   bool
+	// Host clients use for presigned URLs (defaults to MinioEndpoint).
+	MinioPublicEndpoint string
 
 	MigrateOnStart bool
 
@@ -61,6 +63,7 @@ func Load() *Config {
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucket:    getEnv("MINIO_BUCKET", "receipts"),
 		MinioUseSSL:    getEnvBool("MINIO_USE_SSL", false),
+		MinioPublicEndpoint: getEnv("MINIO_PUBLIC_ENDPOINT", getEnv("MINIO_ENDPOINT", "minio:9000")),
 
 		MigrateOnStart: getEnvBool("MIGRATE_ON_START", true),
 
