@@ -2,3 +2,7 @@
 backend/bin/
 *.exe
 tmp/
+
+backend/api
+backend/migrate
+backend/worker
