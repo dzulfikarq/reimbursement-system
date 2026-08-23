@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/mumtaz/reimbursement-system/backend/internal/config"
+	"github.com/mumtaz/reimbursement-system/backend/internal/modules/audit"
 	apperr "github.com/mumtaz/reimbursement-system/backend/internal/pkg/apperr"
 )
 
@@ -131,9 +132,13 @@ func (w *WorkflowService) Submit(ctx context.Context, id uuid.UUID, role string,
 				return err
 			}
 		}
-		return tx.Exec(`
+		if err := tx.Exec(`
 			UPDATE reimbursements SET status = 'SUBMITTED', current_step = 1, submitted_at = now(), decided_at = NULL, updated_at = now()
-			WHERE id = ?`, id).Error
+			WHERE id = ?`, id).Error; err != nil {
+			return err
+		}
+		audit.Write(tx, userID, audit.ActionSubmitClaim, "reimbursement", id, map[string]any{"amount": current.Amount})
+		return nil
 	})
 	return finishTx(w.repo, ctx, id, err)
 }
@@ -220,6 +225,15 @@ func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole st
 			}
 			bizErr = wrapInternal(tx.Exec(`UPDATE reimbursements SET status = 'REJECTED', decided_at = now(), updated_at = now() WHERE id = ?`, id).Error)
 		}
+		if bizErr == nil {
+			actionName := audit.ActionApproveClaim
+			meta := map[string]any{"step": idx + 1, "role": actorRole}
+			if action != "approved" {
+				actionName = audit.ActionRejectClaim
+				meta["note"] = note
+			}
+			audit.Write(tx, userID, actionName, "reimbursement", id, meta)
+		}
 		return bizErr
 	})
 
@@ -256,8 +270,11 @@ func (w *WorkflowService) Cancel(ctx context.Context, id uuid.UUID, role string,
 			bizErr = apperr.Conflict("Approval already started — claim can no longer be cancelled")
 			return bizErr
 		}
-		bizErr = wrapInternal(tx.Exec(`UPDATE reimbursements SET status = 'CANCELLED', cancelled_at = now(), updated_at = now() WHERE id = ?`, id).Error)
-		return bizErr
+		if err := tx.Exec(`UPDATE reimbursements SET status = 'CANCELLED', cancelled_at = now(), updated_at = now() WHERE id = ?`, id).Error; err != nil {
+			return err
+		}
+		audit.Write(tx, userID, audit.ActionCancelClaim, "reimbursement", id, map[string]any{"amount": claim.Amount})
+		return nil
 	})
 	if err != nil && bizErr == nil {
 		return nil, apperr.Internal(err)
@@ -269,7 +286,7 @@ func (w *WorkflowService) Cancel(ctx context.Context, id uuid.UUID, role string,
 }
 
 // Pay: finance only, APPROVED → PAID (terminal).
-func (w *WorkflowService) Pay(ctx context.Context, id uuid.UUID, role string) (*DetailResponse, error) {
+func (w *WorkflowService) Pay(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) (*DetailResponse, error) {
 	if role != "finance" {
 		return nil, apperr.Forbidden("Only Finance can mark claims as paid")
 	}
@@ -285,8 +302,11 @@ func (w *WorkflowService) Pay(ctx context.Context, id uuid.UUID, role string) (*
 			bizErr = apperr.Conflict("Only APPROVED claims can be paid")
 			return bizErr
 		}
-		bizErr = wrapInternal(tx.Exec(`UPDATE reimbursements SET status = 'PAID', paid_at = now(), updated_at = now() WHERE id = ?`, id).Error)
-		return bizErr
+		if err := tx.Exec(`UPDATE reimbursements SET status = 'PAID', paid_at = now(), updated_at = now() WHERE id = ?`, id).Error; err != nil {
+			return err
+		}
+		audit.Write(tx, userID, audit.ActionPayClaim, "reimbursement", id, map[string]any{"amount": claim.Amount})
+		return nil
 	})
 	if err != nil && bizErr == nil {
 		return nil, apperr.Internal(err)

@@ -357,7 +357,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id}/pay [post]
 func (h *Handler) Pay(c *gin.Context) {
-	role, _, _, ok := identity(c)
+	role, userID, _, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -366,7 +366,7 @@ func (h *Handler) Pay(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	res, err := h.wf.Pay(c.Request.Context(), id, role)
+	res, err := h.wf.Pay(c.Request.Context(), id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return

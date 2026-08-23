@@ -21,6 +21,7 @@ import (
 	healthmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/health"
 	authmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/auth"
 	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
+	dashmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/dashboard"
 	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
 	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
 	reimbmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reimbursements"
@@ -129,6 +130,8 @@ func buildRouter(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio
 	reimbSvc := reimbmod.NewService(reimbRepo)
 	reimbmod.RegisterRoutes(v1,
 		reimbmod.NewHandler(reimbSvc, reimbmod.NewWorkflowService(cfg, reimbRepo, db), reimbStore), authn)
+
+	dashmod.RegisterRoutes(v1, dashmod.NewHandler(dashmod.NewService(dashmod.NewRepository(db), rdb)), authn)
 
 	r.GET("/healthz", healthmod.Handler(healthmod.Deps{
 		DB:          db,
