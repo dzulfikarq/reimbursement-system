@@ -6,7 +6,7 @@
 
 @theme {
   --font-*: initial;
-  --font-outfit: Outfit, sans-serif;
+  --font-rubik: Rubik, sans-serif;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -172,7 +172,7 @@
     cursor: pointer;
   }
   body {
-    @apply relative z-1 bg-brand-25 font-normal font-outfit dark:bg-gray-900;
+    @apply relative z-1 bg-brand-25 font-normal font-rubik dark:bg-gray-900;
   }
 }
 
