@@ -18,24 +18,43 @@ interface NavItem {
   roles: string[];
 }
 
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
 // Role-scoped navigation (docs/05 sidebar matrix). Backend still authorizes.
-const NAV_ITEMS: NavItem[] = [
-  { name: "Dashboard", icon: LayoutDashboard, path: "/", roles: ["employee", "manager", "finance", "admin"] },
-  { name: "My Claims", icon: ReceiptText, path: "/reimbursements", roles: ["employee", "manager", "finance", "admin"] },
-  { name: "Approvals", icon: ClipboardCheck, path: "/approvals", roles: ["manager", "finance", "admin"] },
-  { name: "Payments", icon: Banknote, path: "/payments", roles: ["finance"] },
-  { name: "Users", icon: Users, path: "/admin/users", roles: ["admin"] },
-  { name: "Departments", icon: Building2, path: "/admin/departments", roles: ["admin"] },
-  { name: "Categories", icon: Tags, path: "/admin/categories", roles: ["admin"] },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Menu",
+    items: [
+      { name: "Dashboard", icon: LayoutDashboard, path: "/", roles: ["employee", "manager", "finance", "admin"] },
+      { name: "My Claims", icon: ReceiptText, path: "/reimbursements", roles: ["employee", "manager", "finance", "admin"] },
+      { name: "Approvals", icon: ClipboardCheck, path: "/approvals", roles: ["manager", "finance", "admin"] },
+      { name: "Payments", icon: Banknote, path: "/payments", roles: ["finance"] },
+    ],
+  },
+  {
+    label: "Master Data",
+    items: [
+      { name: "Departments", icon: Building2, path: "/admin/departments", roles: ["admin"] },
+      { name: "Categories", icon: Tags, path: "/admin/categories", roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [{ name: "Users", icon: Users, path: "/admin/users", roles: ["admin"] }],
+  },
 ];
 
 export default function AppSidebar({ role }: { role?: string }) {
   const sidebarExpanded = useUIStore((s) => s.sidebarExpanded);
   const sidebarMobileOpen = useUIStore((s) => s.sidebarMobileOpen);
 
-  const items = NAV_ITEMS.filter(
-    (item) => !role || item.roles.includes(role),
-  );
+  const sections = NAV_SECTIONS.map((s) => ({
+    ...s,
+    items: s.items.filter((item) => !role || item.roles.includes(role)),
+  })).filter((s) => s.items.length > 0);
 
   return (
     <aside
@@ -59,36 +78,42 @@ export default function AppSidebar({ role }: { role?: string }) {
       </div>
 
       <nav className="no-scrollbar flex-1 overflow-y-auto">
-        <ul className="mb-6 flex flex-col gap-1.5">
-          <li className="menu-item px-0 pb-2 text-theme-xs font-semibold uppercase tracking-wider text-gray-400">
-            Menu
-          </li>
-          {items.map(({ name, icon: Icon, path }) => (
-            <li key={name}>
-              <NavLink
-                to={path}
-                end={path === "/"}
-                onClick={() => useUIStore.getState().setSidebarMobileOpen(false)}
-                className={({ isActive }) =>
-                  `menu-item group ${isActive ? "menu-item-active" : "menu-item-inactive"} ${
-                    sidebarExpanded ? "" : "lg:justify-center"
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon
-                      className={`size-5 shrink-0 ${
-                        isActive ? "menu-item-icon-active" : "menu-item-icon-inactive"
-                      }`}
-                    />
-                    {(sidebarExpanded || sidebarMobileOpen) && name}
-                  </>
-                )}
-              </NavLink>
+        {sections.map((section, si) => (
+          <ul key={section.label} className={`mb-6 flex flex-col gap-1.5 ${si > 0 ? "pt-4 border-t border-gray-100 dark:border-gray-800" : ""}`}>
+            <li
+              className={`menu-item px-0 pb-2 text-theme-xs font-semibold uppercase tracking-wider text-gray-400 ${
+                sidebarExpanded || sidebarMobileOpen ? "" : "lg:sr-only"
+              }`}
+            >
+              {section.label}
             </li>
-          ))}
-        </ul>
+            {section.items.map(({ name, icon: Icon, path }) => (
+              <li key={name}>
+                <NavLink
+                  to={path}
+                  end={path === "/"}
+                  onClick={() => useUIStore.getState().setSidebarMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `menu-item group ${isActive ? "menu-item-active" : "menu-item-inactive"} ${
+                      sidebarExpanded ? "" : "lg:justify-center"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon
+                        className={`size-5 shrink-0 ${
+                          isActive ? "menu-item-icon-active" : "menu-item-icon-inactive"
+                        }`}
+                      />
+                      {(sidebarExpanded || sidebarMobileOpen) && name}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        ))}
       </nav>
     </aside>
   );
