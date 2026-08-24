@@ -16,7 +16,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 // Full-viewport loader for session bootstrapping / route guards.
 export function FullScreenLoader() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-brand-25 dark:bg-gray-900">
       <Spinner className="size-8" />
     </div>
   );
