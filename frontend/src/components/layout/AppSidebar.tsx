@@ -5,7 +5,6 @@ import {
   ClipboardCheck,
   Banknote,
   Users,
-  Building2,
   Tags,
   type LucideIcon,
 } from "lucide-react";
@@ -38,7 +37,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Master Data",
     items: [
-      { name: "Departments", icon: Building2, path: "/admin/departments", roles: ["admin"] },
       { name: "Categories", icon: Tags, path: "/admin/categories", roles: ["admin"] },
     ],
   },

@@ -8,7 +8,7 @@ import ClaimsListPage from "./pages/ClaimsListPage";
 import ClaimDetailPage from "./pages/ClaimDetailPage";
 import ClaimFormPage from "./pages/ClaimFormPage";
 import ClaimsQueuePage from "./pages/ClaimsQueuePage";
-import { AdminUsersPage, AdminDepartmentsPage, AdminCategoriesPage } from "./pages/AdminPages";
+import { AdminUsersPage, AdminCategoriesPage } from "./pages/AdminPages";
 import { ForbiddenPage, NotFoundPage } from "./pages/ErrorPages";
 
 export default function App() {
@@ -55,10 +55,6 @@ export default function App() {
           <Route
             path="admin/users"
             element={<RoleRoute allow={["admin"]}><AdminUsersPage /></RoleRoute>}
-          />
-          <Route
-            path="admin/departments"
-            element={<RoleRoute allow={["admin"]}><AdminDepartmentsPage /></RoleRoute>}
           />
           <Route
             path="admin/categories"

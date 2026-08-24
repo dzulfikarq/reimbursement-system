@@ -17,13 +17,10 @@ import {
   useDepartments,
   useUsers,
   useSaveCategory,
-  useSaveDepartment,
   useDeleteCategory,
-  useDeleteDepartment,
   useCreateUser,
   useResetPassword,
   type Category,
-  type Department,
   type UserRow,
 } from "../lib/admin";
 
@@ -166,95 +163,6 @@ function CategoryForm({
         <Button size="sm" type="submit" loading={saving}>Save</Button>
       </div>
     </form>
-  );
-}
-
-// --- Departments ---
-export function AdminDepartmentsPage() {
-  const departments = useDepartments();
-  const [editing, setEditing] = useState<Department | "new" | null>(null);
-  const [deleting, setDeleting] = useState<Department | null>(null);
-  const del = useDeleteDepartment();
-  const save = useSaveDepartment(editing && editing !== "new" ? editing.id : undefined);
-
-  const [name, setName] = useState("");
-  const [budget, setBudget] = useState("");
-
-  function openEdit(d: Department | "new") {
-    if (d === "new") { setName(""); setBudget(""); }
-    else { setName(d.name); setBudget(d.monthly_budget ?? ""); }
-    setEditing(d);
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-title-md font-semibold text-gray-800 dark:text-white/90">Departments</h1>
-        <Button size="sm" startIcon={<Plus className="size-4" />} onClick={() => openEdit("new")}>New department</Button>
-      </div>
-
-      {departments.isLoading ? (
-        <div className="h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
-      ) : departments.isError ? (
-        <ErrorState onRetry={() => departments.refetch()} />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell isHeader>Name</TableCell>
-              <TableCell isHeader>Monthly budget</TableCell>
-              <TableCell isHeader className="!text-right">Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(departments.data ?? []).map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className="font-medium">{d.name}</TableCell>
-                <TableCell>{d.monthly_budget ? fmtIDR(d.monthly_budget) : "—"}</TableCell>
-                <TableCell className="!text-right">
-                  <Button variant="outline" size="xs" onClick={() => openEdit(d)}>Edit</Button>{" "}
-                  <Button variant="ghost" size="xs" onClick={() => setDeleting(d)}>Delete</Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "New department" : "Edit department"}>
-        <form
-          className="space-y-4 p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save.mutate(
-              { name: name.trim(), monthly_budget: budget.trim() || null },
-              { onSuccess: () => setEditing(null) },
-            );
-          }}
-        >
-          <FormField label="Name" required>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Engineering" />
-          </FormField>
-          <FormField label="Monthly budget (Rp)" hint="Shown as usage bar on dashboards. Empty = untracked.">
-            <Input type="number" min={0} step="any" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="50000000" />
-          </FormField>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" type="button" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button size="sm" type="submit" loading={save.isPending}>Save</Button>
-          </div>
-        </form>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleting !== null}
-        onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && del.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
-        title="Delete department?"
-        message={deleting ? `"${deleting.name}" will be removed. Users in it must be moved first.` : ""}
-        tone="danger"
-        loading={del.isPending}
-      />
-    </div>
   );
 }
 
