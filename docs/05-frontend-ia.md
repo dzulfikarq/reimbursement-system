@@ -15,7 +15,6 @@ React 19 + TypeScript + Vite. Tailwind CSS, Axios, React Router (data mode off �
 | `/approvals` | Approval inbox | manager/finance/admin |
 | `/payments` | Payment queue (APPROVED claims) | finance |
 | `/admin/users` | User management | admin |
-| `/admin/departments` | Departments & budgets | admin |
 | `/admin/categories` | Categories & limits | admin |
 | `*` | 404 · `403` page for denied routes | |
 
@@ -33,7 +32,7 @@ Sidebar per role:
 employee :  Dashboard · My Claims
 manager  :  Dashboard · My Claims · Approvals
 finance  :  Dashboard · All Claims · Approvals · Payments
-admin    :  Dashboard · All Claims · Users · Departments · Categories
+admin    :  Dashboard -> All Claims -> Users -> Categories
 ```
 
 ## Key Screens & States

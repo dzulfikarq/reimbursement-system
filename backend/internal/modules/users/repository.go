@@ -17,7 +17,6 @@ import (
 // subset, this module owns admin CRUD over the same rows.
 type User struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
-	DepartmentID *uuid.UUID
 	Name         string
 	Email        string
 	PasswordHash string
@@ -43,22 +42,18 @@ type Repository struct {
 
 func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
 
-// listRow adds the joined department name; embedded keeps gorm schema happy
-// for Scan.
+// listRow keeps the embedded shape used by Scan.
 type listRow struct {
-	User           `gorm:"embedded"`
-	DepartmentName *string
+	User `gorm:"embedded"`
 }
 
 func baseQuery(db *gorm.DB) *gorm.DB {
 	return db.Model(&listRow{}).
-		Select("users.id", "users.department_id", "users.name", "users.email",
-			"users.password_hash", "users.role", "users.is_active", "users.created_at", "users.updated_at",
-			"departments.name AS department_name").
-		Joins("LEFT JOIN departments ON departments.id = users.department_id")
+		Select("users.id", "users.name", "users.email",
+			"users.password_hash", "users.role", "users.is_active", "users.created_at", "users.updated_at")
 }
 
-func (r *Repository) List(ctx context.Context, p listq.Params, role, departmentID string) ([]listRow, int64, error) {
+func (r *Repository) List(ctx context.Context, p listq.Params, role string) ([]listRow, int64, error) {
 	var total int64
 	q := r.db.WithContext(ctx).Table("users")
 	if p.Search != "" {
@@ -67,15 +62,12 @@ func (r *Repository) List(ctx context.Context, p listq.Params, role, departmentI
 	if role != "" {
 		q = q.Where("role = ?", role)
 	}
-	if departmentID != "" {
-		q = q.Where("department_id = ?", departmentID)
-	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	rows := make([]listRow, 0, p.Limit)
-	err := applyFilters(baseQuery(r.db.WithContext(ctx)), p.Search, role, departmentID).
+	err := applyFilters(baseQuery(r.db.WithContext(ctx)), p.Search, role).
 		Order("users." + p.Sort + " " + p.Order + ", users.id " + p.Order).
 		Limit(p.Limit).Offset(p.Offset).
 		Scan(&rows).Error
@@ -83,15 +75,12 @@ func (r *Repository) List(ctx context.Context, p listq.Params, role, departmentI
 }
 
 // applyFilters mutates and returns db so count + list stay identical.
-func applyFilters(db *gorm.DB, search, role, departmentID string) *gorm.DB {
+func applyFilters(db *gorm.DB, search, role string) *gorm.DB {
 	if search != "" {
 		db = db.Where("users.name ILIKE ? OR users.email ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 	if role != "" {
 		db = db.Where("users.role = ?", role)
-	}
-	if departmentID != "" {
-		db = db.Where("users.department_id = ?", departmentID)
 	}
 	return db
 }
@@ -113,11 +102,11 @@ func (r *Repository) Create(ctx context.Context, u *User) error {
 	return err
 }
 
-// Update touches name/role/department/is_active — never password or email.
+// Update touches name/role/is_active — never password or email.
 func (r *Repository) Update(ctx context.Context, u *User) error {
 	err := r.db.WithContext(ctx).
-		Exec("UPDATE users SET name = ?, role = ?::user_role, department_id = ?, is_active = ?, updated_at = now() WHERE id = ?",
-			u.Name, u.Role, u.DepartmentID, u.IsActive, u.ID).Error
+		Exec("UPDATE users SET name = ?, role = ?::user_role, is_active = ?, updated_at = now() WHERE id = ?",
+			u.Name, u.Role, u.IsActive, u.ID).Error
 	return err
 }
 

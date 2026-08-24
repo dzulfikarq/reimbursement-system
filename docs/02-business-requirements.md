@@ -13,11 +13,11 @@ Authorization is enforced **in the backend** (middleware + service checks). Fron
 | View all claims | — | — | ✅ | ✅ |
 | Approve / reject (per approval matrix) | — | ✅ | ✅ | ✅ |
 | Mark as paid | — | — | ✅ | — |
-| Manage users & departments | — | — | — | ✅ |
+| Manage users | — | — | — | ✅ |
 | Manage categories & limits | — | — | — | ✅ |
-| View dashboards (scoped) | own | team | all | all |
+| View dashboards (scoped) | own | all | all | all |
 
-Manager scope = employees in their department. Admin does **not** approve; admin manages the system.
+Managers see and approve claims from the whole organization (no department structure). Admin does **not** approve; admin manages the system.
 
 ## Claim Lifecycle (State Machine)
 
@@ -55,7 +55,6 @@ Rationale: low-value claims shouldn't burn senior time; high-value claims get fi
 5. **Edit window** — editable only in `DRAFT`/`REJECTED` by owner. Deletable only in `DRAFT` by owner.
 6. **Cancel window** — owner may cancel while `SUBMITTED` only if no approval step has been acted on.
 7. **Sequential approvals** — approver can act only on their own pending step and only when all prior steps are approved. Approving own submission impossible: submitter is excluded from generated steps (their manager/finance/admin handle it).
-8. **Department budget (soft)** — departments have `monthly_budget`; usage > 80% surfaces a warning badge for Finance/Admin dashboards (advisory, not blocking — hard blocks create shadow spreadsheets in real companies).
 
 ## Functional Requirements
 

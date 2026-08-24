@@ -8,11 +8,9 @@ type LoginRequest struct {
 }
 
 type UserResponse struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	Email          string     `json:"email"`
-	Role           string     `json:"role"`
-	DepartmentID   *string    `json:"department_id,omitempty"`
-	DepartmentName *string    `json:"department_name,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -121,7 +121,7 @@ func (h *handlers) handleReport(ctx context.Context, t *asynq.Task) error {
 
 	var buf strings.Builder
 	w := csv.NewWriter(&buf)
-	_ = w.Write([]string{"id", "employee", "department", "category", "title", "expense_date", "amount", "status"})
+	_ = w.Write([]string{"id", "employee", "category", "title", "expense_date", "amount", "status"})
 	for _, r := range rows {
 		_ = w.Write(r[:])
 	}
@@ -150,20 +150,18 @@ func setJob(ctx context.Context, rdb *goredis.Client, id, status, errMsg string)
 }
 
 // queryClaims returns CSV-ready rows for the month (+optional status filter).
-func queryClaims(db *gorm.DB, month, status string) ([][8]string, error) {
+func queryClaims(db *gorm.DB, month, status string) ([][7]string, error) {
 	type row struct {
-		ID         string
-		Employee   string
-		Department string
-		Category   string
-		Title      string
+		ID          string
+		Employee    string
+		Category    string
+		Title       string
 		ExpenseDate string
-		Amount     string
-		Status     string
+		Amount      string
+		Status      string
 	}
 	q := `SELECT r.id AS id,
 	             u.name AS employee,
-	             COALESCE(d.name, '') AS department,
 	             c.name AS category,
 	             r.title AS title,
 	             to_char(r.expense_date, 'YYYY-MM-DD') AS expense_date,
@@ -171,7 +169,6 @@ func queryClaims(db *gorm.DB, month, status string) ([][8]string, error) {
 	             r.status::text AS status
 	      FROM reimbursements r
 	      JOIN users u ON u.id = r.employee_id
-	      LEFT JOIN departments d ON d.id = u.department_id
 	      JOIN categories c ON c.id = r.category_id
 	      WHERE r.deleted_at IS NULL AND date_trunc('month', r.expense_date) = ?::date`
 	args := []any{month + "-01"}
@@ -187,9 +184,9 @@ func queryClaims(db *gorm.DB, month, status string) ([][8]string, error) {
 	if err := db.Raw(q, args...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	out := make([][8]string, 0, len(rows))
+	out := make([][7]string, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, [8]string{r.ID, r.Employee, r.Department, r.Category, r.Title, r.ExpenseDate, r.Amount, r.Status})
+		out = append(out, [7]string{r.ID, r.Employee, r.Category, r.Title, r.ExpenseDate, r.Amount, r.Status})
 	}
 	return out, nil
 }

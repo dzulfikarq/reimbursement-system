@@ -29,7 +29,7 @@ docker compose exec api /app/seed           # demo data (idempotent-ish; see see
 |---|---|---|---|
 | admin@mumtaz.test | Admin#12345 | admin | everything + user management |
 | finance@mumtaz.test | Finance#12345 | finance | all claims, approvals step 2+, payments, exports |
-| manager.eng@mumtaz.test | Manager#12345 | manager | own department's claims, approval step 1 |
+| manager.eng@mumtaz.test | Manager#12345 | manager | all claims for approval step 1 |
 | employee.eng@mumtaz.test | Employee#12345 | employee | own claims only |
 
 ## Architecture

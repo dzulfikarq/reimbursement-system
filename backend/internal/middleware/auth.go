@@ -12,7 +12,6 @@ import (
 const (
 	CtxUserID   = "auth_user_id"
 	CtxRole     = "auth_role"
-	CtxDeptID   = "auth_department_id"
 	CtxUserName = "auth_name"
 )
 
@@ -34,7 +33,6 @@ func AuthN(secret string) gin.HandlerFunc {
 		}
 		c.Set(CtxUserID, claims.UserID)
 		c.Set(CtxRole, claims.Role)
-		c.Set(CtxDeptID, claims.DepartmentID)
 		c.Set(CtxUserName, claims.Name)
 		c.Next()
 	}

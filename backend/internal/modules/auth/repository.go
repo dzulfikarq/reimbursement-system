@@ -16,23 +16,17 @@ import (
 
 // User maps the users table (auth-relevant subset).
 type User struct {
-	ID            uuid.UUID `gorm:"type:uuid;primaryKey"`
-	DepartmentID  *uuid.UUID
-	Name          string
-	Email         string
-	PasswordHash  string
-	Role          string
-	IsActive      bool
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Name         string
+	Email        string
+	PasswordHash string
+	Role         string
+	IsActive     bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (User) TableName() string { return "users" }
-
-type departmentRow struct {
-	ID   uuid.UUID
-	Name string
-}
 
 type Repository struct {
 	db *gorm.DB
@@ -48,7 +42,7 @@ var ErrInactive = errors.New("account disabled")
 func (r *Repository) FindByEmail(ctx context.Context, email string) (*User, error) {
 	var u User
 	err := r.db.WithContext(ctx).
-		Select("users.id", "users.department_id", "users.name", "users.email",
+		Select("users.id", "users.name", "users.email",
 			"users.password_hash", "users.role", "users.is_active", "users.created_at", "users.updated_at").
 		Where("email = ?", email).
 		First(&u).Error
@@ -61,7 +55,7 @@ func (r *Repository) FindByEmail(ctx context.Context, email string) (*User, erro
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := r.db.WithContext(ctx).
-		Select("users.id", "users.department_id", "users.name", "users.email",
+		Select("users.id", "users.name", "users.email",
 			"users.password_hash", "users.role", "users.is_active", "users.created_at", "users.updated_at").
 		Where("users.id = ?", id).
 		First(&u).Error
@@ -69,16 +63,6 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 		return nil, ErrInvalidCredentials
 	}
 	return &u, err
-}
-
-func (r *Repository) DepartmentName(ctx context.Context, id uuid.UUID) (string, error) {
-	var d departmentRow
-	err := r.db.WithContext(ctx).Table("departments").
-		Select("id", "name").Where("id = ?", id).First(&d).Error
-	if err != nil {
-		return "", err
-	}
-	return d.Name, nil
 }
 
 // --- refresh-token session store (Redis) ---

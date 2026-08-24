@@ -26,7 +26,6 @@ import (
 	catmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/categories"
 	dashmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/dashboard"
 	reportmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reports"
-	deptmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/departments"
 	usermod "github.com/mumtaz/reimbursement-system/backend/internal/modules/users"
 	reimbmod "github.com/mumtaz/reimbursement-system/backend/internal/modules/reimbursements"
 	"github.com/mumtaz/reimbursement-system/backend/internal/middleware"
@@ -70,7 +69,6 @@ func New(cfg *config.Config, db *gorm.DB, rdb *goredis.Client, mc *minio.Client)
 
 	v1.Use(globalGuard)
 
-	deptmod.RegisterRoutes(v1, deptmod.NewHandler(deptmod.NewService(deptmod.NewRepository(db))), authn, adminOnly)
 	catmod.RegisterRoutes(v1, catmod.NewHandler(catmod.NewService(catmod.NewRepository(db))), authn, adminOnly)
 	usermod.RegisterRoutes(v1, usermod.NewHandler(usermod.NewService(usermod.NewRepository(db))), authn, adminOnly)
 

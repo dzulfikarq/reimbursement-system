@@ -24,16 +24,16 @@ type ListResult struct {
 	TotalPages int            `json:"total_pages"`
 }
 
-// List: admin-only route; role/department filters validated loosely — unknown
-// values just return empty results (no injection risk, params bound).
-func (s *Service) List(ctx context.Context, p listq.Params, role, departmentID string) (*ListResult, error) {
-	rows, total, err := s.repo.List(ctx, p, role, departmentID)
+// List: admin-only route; role filter validated loosely — unknown values just
+// return empty results (no injection risk, params bound).
+func (s *Service) List(ctx context.Context, p listq.Params, role string) (*ListResult, error) {
+	rows, total, err := s.repo.List(ctx, p, role)
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
 	items := make([]UserResponse, 0, len(rows))
 	for i := range rows {
-		items = append(items, toResponse(&rows[i].User, rows[i].DepartmentName))
+		items = append(items, toResponse(&rows[i].User))
 	}
 	return &ListResult{Items: items, Page: p.Page, Limit: p.Limit, Total: total, TotalPages: p.TotalPages(total)}, nil
 }
@@ -52,18 +52,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*UserResponse,
 		Role:         req.Role,
 		IsActive:     true,
 	}
-	if req.DepartmentID != nil {
-		depID, err := uuid.Parse(*req.DepartmentID)
-		if err != nil {
-			return nil, apperr.Validation("department_id is invalid")
-		}
-		u.DepartmentID = &depID
-	}
 
 	if err := s.repo.Create(ctx, u); err != nil {
 		return nil, err
 	}
-	resp := toResponse(u, nil)
+	resp := toResponse(u)
 	return &resp, nil
 }
 
@@ -82,13 +75,6 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 	if req.Role != nil {
 		u.Role = *req.Role
 	}
-	if req.DepartmentID != nil {
-		depID, err := uuid.Parse(*req.DepartmentID)
-		if err != nil {
-			return nil, apperr.Validation("department_id is invalid")
-		}
-		u.DepartmentID = &depID
-	}
 	if req.IsActive != nil {
 		u.IsActive = *req.IsActive
 	}
@@ -96,7 +82,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 	if err := s.repo.Update(ctx, u); err != nil {
 		return nil, err
 	}
-	resp := toResponse(u, row.DepartmentName)
+	resp := toResponse(u)
 	return &resp, nil
 }
 
@@ -110,20 +96,13 @@ func (s *Service) ResetPassword(ctx context.Context, id uuid.UUID, newPassword s
 	return s.repo.UpdatePassword(ctx, id, hash)
 }
 
-func toResponse(u *User, deptName *string) UserResponse {
-	var depID *string
-	if u.DepartmentID != nil {
-		id := u.DepartmentID.String()
-		depID = &id
-	}
+func toResponse(u *User) UserResponse {
 	return UserResponse{
-		ID:             u.ID.String(),
-		Name:           u.Name,
-		Email:          u.Email,
-		Role:           u.Role,
-		DepartmentID:   depID,
-		DepartmentName: deptName,
-		IsActive:       u.IsActive,
-		CreatedAt:      u.CreatedAt,
+		ID:        u.ID.String(),
+		Name:      u.Name,
+		Email:     u.Email,
+		Role:      u.Role,
+		IsActive:  u.IsActive,
+		CreatedAt: u.CreatedAt,
 	}
 }

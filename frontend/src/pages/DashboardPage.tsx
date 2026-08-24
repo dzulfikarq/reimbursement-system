@@ -3,7 +3,6 @@ import {
   Clock,
   Banknote,
   TrendingUp,
-  AlertTriangle,
   Plus,
   ClipboardCheck,
 } from "lucide-react";
@@ -114,36 +113,6 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
-
-      {/* Budget warnings (manager+) */}
-      {(role === "manager" || role === "finance" || role === "admin") && (s?.budget_usage?.length ?? 0) > 0 && (
-        <Card title="Department Budget Usage" desc="Current month spend vs monthly budget.">
-          <div className="space-y-3 px-5 pb-5 pt-1">
-            {s!.budget_usage.map((b) => {
-              const warn = b.used_percent >= 80;
-              return (
-                <div key={b.department_id}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className={`inline-flex items-center gap-1.5 font-medium ${warn ? "text-error-600" : "text-gray-700 dark:text-gray-300"}`}>
-                      {warn && <AlertTriangle className="size-4" />}
-                      {b.department_name}
-                    </span>
-                    <span className="text-gray-500">
-                      {fmtIDR(b.monthly_spend)} / {b.monthly_budget ? fmtIDR(b.monthly_budget) : "no budget"}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
-                    <div
-                      className={`h-full rounded-full transition-all ${warn ? "bg-error-500" : "bg-brand-500"}`}
-                      style={{ width: `${Math.min(b.used_percent, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Trend */}

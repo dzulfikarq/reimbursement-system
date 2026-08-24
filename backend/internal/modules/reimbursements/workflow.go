@@ -74,8 +74,8 @@ func (w *WorkflowService) notifyEmployee(ctx context.Context, claimID uuid.UUID,
 // Submit runs the full policy engine then flips DRAFT/REJECTED → SUBMITTED,
 // regenerating the approval snapshot. Violations accumulate — client sees
 // every problem in one round-trip (docs/02 FR-3).
-func (w *WorkflowService) Submit(ctx context.Context, id uuid.UUID, role string, userID, deptID uuid.UUID) (*DetailResponse, error) {
-	current, err := w.repo.GetDetail(ctx, id, role, userID, deptID)
+func (w *WorkflowService) Submit(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) (*DetailResponse, error) {
+	current, err := w.repo.GetDetail(ctx, id, role, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -176,20 +176,20 @@ func (w *WorkflowService) Submit(ctx context.Context, id uuid.UUID, role string,
 }
 
 // Approve acts on the caller's pending step — only when it's their turn and
-// they hold the required role. Manager steps require same department.
-func (w *WorkflowService) Approve(ctx context.Context, id uuid.UUID, actorRole string, userID, deptID uuid.UUID) (*DetailResponse, error) {
-	return w.decide(ctx, id, actorRole, userID, deptID, "approved", "")
+// they hold the required role.
+func (w *WorkflowService) Approve(ctx context.Context, id uuid.UUID, actorRole string, userID uuid.UUID) (*DetailResponse, error) {
+	return w.decide(ctx, id, actorRole, userID, "approved", "")
 }
 
 // Reject requires a note; first rejection ends the whole claim.
-func (w *WorkflowService) Reject(ctx context.Context, id uuid.UUID, actorRole string, userID, deptID uuid.UUID, note string) (*DetailResponse, error) {
+func (w *WorkflowService) Reject(ctx context.Context, id uuid.UUID, actorRole string, userID uuid.UUID, note string) (*DetailResponse, error) {
 	if note == "" {
 		return nil, apperr.Validation("note is required to reject a claim")
 	}
-	return w.decide(ctx, id, actorRole, userID, deptID, "rejected", note)
+	return w.decide(ctx, id, actorRole, userID, "rejected", note)
 }
 
-func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole string, userID, deptID uuid.UUID, action, note string) (*DetailResponse, error) {
+func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole string, userID uuid.UUID, action, note string) (*DetailResponse, error) {
 	var bizErr error
 	err := w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var claim Reimbursement
@@ -226,14 +226,6 @@ func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole st
 		if userID == claim.EmployeeID {
 			bizErr = apperr.Forbidden("You cannot decide on your own claim")
 			return bizErr
-		}
-		if actorRole == "manager" && deptID != uuid.Nil {
-			var empDept uuid.NullUUID
-			tx.Raw("SELECT department_id FROM users WHERE id = ?", claim.EmployeeID).Scan(&empDept)
-			if empDept.Valid && empDept.UUID != deptID {
-				bizErr = apperr.Forbidden("Claim belongs to another department")
-				return bizErr
-			}
 		}
 
 		if action == "approved" {
@@ -280,7 +272,7 @@ func (w *WorkflowService) decide(ctx context.Context, id uuid.UUID, actorRole st
 }
 
 // Cancel: owner only, while SUBMITTED and before any step acted (rule 6).
-func (w *WorkflowService) Cancel(ctx context.Context, id uuid.UUID, role string, userID, deptID uuid.UUID) (*DetailResponse, error) {
+func (w *WorkflowService) Cancel(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) (*DetailResponse, error) {
 	var bizErr error
 	err := w.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var claim Reimbursement

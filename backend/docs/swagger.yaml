@@ -271,92 +271,9 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: 'Role-scoped dashboard: pending count, monthly total, approval rate,
-        budget usage'
+      summary: 'Role-scoped dashboard: pending count, monthly total, approval rate'
       tags:
       - dashboard
-  /departments:
-    get:
-      parameters:
-      - description: Page (default 1)
-        in: query
-        name: page
-        type: integer
-      - description: Limit (default 10, max 100)
-        in: query
-        name: limit
-        type: integer
-      - description: Search by name
-        in: query
-        name: search
-        type: string
-      - description: name | created_at
-        in: query
-        name: sort
-        type: string
-      - description: ASC | DESC
-        in: query
-        name: order
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: List departments
-      tags:
-      - departments
-    post:
-      consumes:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: Create department (admin)
-      tags:
-      - departments
-  /departments/{id}:
-    delete:
-      responses:
-        "204":
-          description: No Content
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: Delete department (admin) — blocked while referenced
-      tags:
-      - departments
-    get:
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: Get department by ID
-      tags:
-      - departments
-    patch:
-      consumes:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: Update department (admin)
-      tags:
-      - departments
   /reimbursements:
     get:
       parameters:
@@ -401,7 +318,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: 'List claims (scoped: employee=own, manager=department, finance/admin=all)'
+      summary: 'List claims (scoped: employee=own, manager/finance/admin=all)'
       tags:
       - reimbursements
     post:
@@ -576,10 +493,6 @@ paths:
         in: query
         name: role
         type: string
-      - description: Department UUID
-        in: query
-        name: department_id
-        type: string
       - description: name | email | role | is_active | created_at
         in: query
         name: sort
@@ -616,7 +529,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope'
-      summary: Update user role/department/name/is_active (admin)
+      summary: Update user role/name/is_active (admin)
       tags:
       - users
   /users/{id}/reset-password:

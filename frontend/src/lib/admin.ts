@@ -10,19 +10,11 @@ export interface Category {
   is_active: boolean;
 }
 
-export interface Department {
-  id: string;
-  name: string;
-  monthly_budget: string | null;
-}
-
 export interface UserRow {
   id: string;
   name: string;
   email: string;
   role: "employee" | "manager" | "finance" | "admin";
-  department_id: string | null;
-  department_name?: string | null;
   is_active?: boolean;
 }
 
@@ -65,40 +57,6 @@ export function useDeleteCategory() {
   });
 }
 
-// --- departments ---
-
-export function useDepartments() {
-  return useQuery({
-    queryKey: ["departments"],
-    queryFn: async () => unwrapList<Department>(await api.get("/departments?limit=100")),
-  });
-}
-
-export function useSaveDepartment(id?: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: Partial<Department>) =>
-      id ? api.patch(`/departments/${id}`, input) : api.post("/departments", input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["departments"] });
-      toast.success(id ? "Department updated" : "Department created");
-    },
-    onError: (e) => toast.error(errMessage(e)),
-  });
-}
-
-export function useDeleteDepartment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => api.delete(`/departments/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["departments"] });
-      toast.success("Department deleted");
-    },
-    onError: (e) => toast.error(errMessage(e)),
-  });
-}
-
 // --- users (admin only) ---
 
 interface UsersPage {
@@ -126,7 +84,6 @@ export interface UserInput {
   email: string;
   password: string;
   role: string;
-  department_id: string | null;
 }
 
 export function useCreateUser() {

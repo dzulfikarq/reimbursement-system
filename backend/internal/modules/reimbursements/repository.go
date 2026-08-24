@@ -89,13 +89,11 @@ type Repository struct {
 func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
 
 // scopeFilter applies the role-based visibility rule (docs/02): employee=own,
-// manager=own department, finance/admin=all.
-func scopeFilter(db *gorm.DB, role string, userID, deptID uuid.UUID) *gorm.DB {
+// manager/finance/admin=all.
+func scopeFilter(db *gorm.DB, role string, userID uuid.UUID) *gorm.DB {
 	switch role {
-	case "finance", "admin":
+	case "manager", "finance", "admin":
 		return db
-	case "manager":
-		return db.Where("reimbursements.employee_id IN (SELECT id FROM users WHERE department_id = ?)", deptID)
 	default:
 		return db.Where("reimbursements.employee_id = ?", userID)
 	}
@@ -124,8 +122,8 @@ func applyListFilters(db *gorm.DB, f ListFilters) *gorm.DB {
 	return db
 }
 
-func (r *Repository) List(ctx context.Context, p listq.Params, f ListFilters, role string, userID, deptID uuid.UUID) ([]detailRow, int64, error) {
-	q := scopeFilter(baseQuery(r.db.WithContext(ctx)), role, userID, deptID)
+func (r *Repository) List(ctx context.Context, p listq.Params, f ListFilters, role string, userID uuid.UUID) ([]detailRow, int64, error) {
+	q := scopeFilter(baseQuery(r.db.WithContext(ctx)), role, userID)
 	q = applyListFilters(q, f)
 	if p.Search != "" {
 		q = q.Where("(reimbursements.title ILIKE ? OR reimbursements.description ILIKE ?)", "%"+p.Search+"%", "%"+p.Search+"%")
@@ -145,9 +143,9 @@ func (r *Repository) List(ctx context.Context, p listq.Params, f ListFilters, ro
 }
 
 // GetDetail returns the claim with joined names after enforcing scope.
-func (r *Repository) GetDetail(ctx context.Context, id uuid.UUID, role string, userID, deptID uuid.UUID) (*detailRow, error) {
+func (r *Repository) GetDetail(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) (*detailRow, error) {
 	var row detailRow
-	err := scopeFilter(baseQuery(r.db.WithContext(ctx)), role, userID, deptID).
+	err := scopeFilter(baseQuery(r.db.WithContext(ctx)), role, userID).
 		Where("reimbursements.id = ?", id).
 		First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -276,34 +274,25 @@ func (r *Repository) CreateAttachment(ctx context.Context, a *AttachmentRow) err
 }
 
 // GetAttachment returns the row plus enough claim context for scoping.
-func (r *Repository) GetAttachment(ctx context.Context, attID uuid.UUID) (*AttachmentRow, uuid.UUID, uuid.UUID, string, error) {
+func (r *Repository) GetAttachment(ctx context.Context, attID uuid.UUID) (*AttachmentRow, uuid.UUID, string, error) {
 	var row struct {
 		AttachmentRow `gorm:"embedded"`
 		EmployeeID    uuid.UUID
-		DepartmentID  *uuid.UUID
 		Status        string
 	}
 	err := r.db.WithContext(ctx).
 		Table("attachments").
-		Select("attachments.*, r.employee_id, u.department_id, r.status").
+		Select("attachments.*, r.employee_id, r.status").
 		Joins("JOIN reimbursements r ON r.id = attachments.reimbursement_id").
-		Joins("JOIN users u ON u.id = r.employee_id").
 		Where("attachments.id = ?", attID).
 		First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, uuid.Nil, uuid.Nil, "", apperr.NotFound("Attachment not found")
+		return nil, uuid.Nil, "", apperr.NotFound("Attachment not found")
 	}
 	if err != nil {
-		return nil, uuid.Nil, uuid.Nil, "", err
+		return nil, uuid.Nil, "", err
 	}
-	return &row.AttachmentRow, row.EmployeeID, deref(row.DepartmentID), row.Status, nil
-}
-
-func deref(v *uuid.UUID) uuid.UUID {
-	if v == nil {
-		return uuid.Nil
-	}
-	return *v
+	return &row.AttachmentRow, row.EmployeeID, row.Status, nil
 }
 
 // --- policy engine queries ---

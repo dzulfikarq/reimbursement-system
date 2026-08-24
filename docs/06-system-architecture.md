@@ -26,7 +26,7 @@ request → middleware chain → handler → service → repository → GORM →
 - **handler**: HTTP concerns only — bind, validate shape, call service, write envelope.
 - **service**: business rules, state machine, policy checks, transactions. No HTTP types.
 - **repository**: GORM queries per module. Interfaces defined at consumer side for mocking.
-- Modules: `auth, user, department, category, reimbursement, approval, dashboard, report, notification`. Cross-cutting in `pkg/`: response envelope, app errors, validator, jwt, password hash, minio client, redis client.
+- Modules: `auth, user, category, reimbursement, approval, dashboard, report, notification`. Cross-cutting in `pkg/`: response envelope, app errors, validator, jwt, password hash, minio client, redis client.
 
 Chosen over clean/hexagonal for this scope: one implementation per port makes hexagonal ceremony without payoff; layered modules keep the diff small and reviewable while still testable at service boundaries. Trade-off stated honestly.
 
@@ -58,7 +58,7 @@ RequestID → StructuredLogger → Recoverer → CORS → SecurityHeaders
 
 Two layers:
 1. Route middleware: role gate (`RequireRole("admin")`) for coarse control.
-2. Service layer: object-level checks — owner-or-scope logic ("manager sees own department", "only current step approver may act"). Middleware alone cannot express these; tests cover both layers.
+2. Service layer: object-level checks — owner-or-scope logic ("employee sees own claims only", "only current step approver may act"). Middleware alone cannot express these; tests cover both layers.
 
 ## Concurrency & Consistency
 

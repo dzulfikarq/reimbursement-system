@@ -14,7 +14,6 @@ import { toast } from "../stores/toast";
 import { api } from "../lib/api";
 import {
   useCategories,
-  useDepartments,
   useUsers,
   useSaveCategory,
   useDeleteCategory,
@@ -184,9 +183,7 @@ export function AdminUsersPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("employee");
-  const [deptId, setDeptId] = useState("");
   const [newPw, setNewPw] = useState("");
-  const departments = useDepartments();
 
   return (
     <div className="space-y-5">
@@ -213,7 +210,6 @@ export function AdminUsersPage() {
               <TableCell isHeader>Name</TableCell>
               <TableCell isHeader>Email</TableCell>
               <TableCell isHeader>Role</TableCell>
-              <TableCell isHeader>Department</TableCell>
               <TableCell isHeader>Status</TableCell>
               <TableCell isHeader className="!text-right">Actions</TableCell>
             </TableRow>
@@ -224,7 +220,6 @@ export function AdminUsersPage() {
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell><Badge color={u.role === "admin" ? "dark" : u.role === "finance" ? "info" : "primary"}>{u.role}</Badge></TableCell>
-                <TableCell>{u.department_name ?? "—"}</TableCell>
                 <TableCell><Badge color={u.is_active === false ? "error" : "success"}>{u.is_active === false ? "inactive" : "active"}</Badge></TableCell>
                 <TableCell className="!text-right">
                   <div className="flex justify-end gap-1.5">
@@ -253,7 +248,7 @@ export function AdminUsersPage() {
           onSubmit={(e) => {
             e.preventDefault();
             create.mutate(
-              { name: name.trim(), email: email.trim(), password, role, department_id: deptId || null },
+              { name: name.trim(), email: email.trim(), password, role },
               { onSuccess: () => { setCreating(false); setPassword(""); } },
             );
           }}
@@ -268,16 +263,6 @@ export function AdminUsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Role" required>
               <Select value={role} onChange={(e) => setRole(e.target.value)} options={ROLES.map((r) => ({ value: r, label: r }))} />
-            </FormField>
-            <FormField label="Department">
-              <Select
-                value={deptId}
-                onChange={(e) => setDeptId(e.target.value)}
-                options={[
-                  { value: "", label: "—" },
-                  ...(departments.data ?? []).map((d) => ({ value: d.id, label: d.name })),
-                ]}
-              />
             </FormField>
           </div>
           <div className="flex justify-end gap-2">

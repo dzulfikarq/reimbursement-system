@@ -25,8 +25,8 @@ type ListResult struct {
 	TotalPages int                     `json:"total_pages"`
 }
 
-func (s *Service) List(ctx context.Context, p listq.Params, f ListFilters, role string, userID, deptID uuid.UUID) (*ListResult, error) {
-	rows, total, err := s.repo.List(ctx, p, f, role, userID, deptID)
+func (s *Service) List(ctx context.Context, p listq.Params, f ListFilters, role string, userID uuid.UUID) (*ListResult, error) {
+	rows, total, err := s.repo.List(ctx, p, f, role, userID)
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
@@ -37,8 +37,8 @@ func (s *Service) List(ctx context.Context, p listq.Params, f ListFilters, role 
 	return &ListResult{Items: items, Page: p.Page, Limit: p.Limit, Total: total, TotalPages: p.TotalPages(total)}, nil
 }
 
-func (s *Service) GetDetail(ctx context.Context, id uuid.UUID, role string, userID, deptID uuid.UUID) (*DetailResponse, error) {
-	row, err := s.repo.GetDetail(ctx, id, role, userID, deptID)
+func (s *Service) GetDetail(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) (*DetailResponse, error) {
+	row, err := s.repo.GetDetail(ctx, id, role, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +79,13 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID uuid.UUI
 	if err != nil {
 		return nil, err
 	}
-	return s.GetDetail(ctx, id, "admin", userID, uuid.Nil) // owner just created it; admin scope = unrestricted
+	return s.GetDetail(ctx, id, "admin", userID) // owner just created it; admin scope = unrestricted
 }
 
 // Update: owner only, DRAFT/REJECTED only (docs/02 rule 5). Items replaced
 // wholesale inside one transaction.
-func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest, role string, userID, deptID uuid.UUID) (*DetailResponse, error) {
-	current, err := s.repo.GetDetail(ctx, id, role, userID, deptID)
+func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest, role string, userID uuid.UUID) (*DetailResponse, error) {
+	current, err := s.repo.GetDetail(ctx, id, role, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +111,12 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest, r
 	if err := s.repo.UpdateClaim(ctx, id, categoryID, req.Title, req.Description, expenseDate, req.Items); err != nil {
 		return nil, err
 	}
-	return s.GetDetail(ctx, id, "admin", userID, uuid.Nil)
+	return s.GetDetail(ctx, id, "admin", userID)
 }
 
 // Delete: owner + DRAFT only → soft delete (audit trail survives, docs/03).
-func (s *Service) Delete(ctx context.Context, id uuid.UUID, role string, userID, deptID uuid.UUID) error {
-	current, err := s.repo.GetDetail(ctx, id, role, userID, deptID)
+func (s *Service) Delete(ctx context.Context, id uuid.UUID, role string, userID uuid.UUID) error {
+	current, err := s.repo.GetDetail(ctx, id, role, userID)
 	if err != nil {
 		return err
 	}

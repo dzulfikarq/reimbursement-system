@@ -15,31 +15,29 @@ type Handler struct{ svc *Service }
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
 // identity reads auth context keys set by the AuthN middleware.
-func identity(c *gin.Context) (role string, userID, deptID uuid.UUID, ok bool) {
+func identity(c *gin.Context) (role string, userID uuid.UUID, ok bool) {
 	rawID, _ := c.Get("auth_user_id")
 	rawRole, _ := c.Get("auth_role")
-	rawDept, _ := c.Get("auth_department_id")
 	id, valid := rawID.(uuid.UUID)
 	if !valid {
 		c.Error(apperr.Unauthorized("Missing or invalid credentials"))
-		return "", uuid.Nil, uuid.Nil, false
+		return "", uuid.Nil, false
 	}
 	role, _ = rawRole.(string)
-	deptID, _ = rawDept.(uuid.UUID)
-	return role, id, deptID, true
+	return role, id, true
 }
 
 // Summary godoc
-// @Summary Role-scoped dashboard: pending count, monthly total, approval rate, budget usage
+// @Summary Role-scoped dashboard: pending count, monthly total, approval rate
 // @Tags dashboard
 // @Success 200 {object} response.Envelope
 // @Router /dashboard/summary [get]
 func (h *Handler) Summary(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
-	res, err := h.svc.Summary(c.Request.Context(), role, userID, deptID)
+	res, err := h.svc.Summary(c.Request.Context(), role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -54,7 +52,7 @@ func (h *Handler) Summary(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /dashboard/monthly-trend [get]
 func (h *Handler) MonthlyTrend(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -67,7 +65,7 @@ func (h *Handler) MonthlyTrend(c *gin.Context) {
 		}
 		months = n
 	}
-	res, err := h.svc.MonthlyTrend(c.Request.Context(), role, userID, deptID, months)
+	res, err := h.svc.MonthlyTrend(c.Request.Context(), role, userID, months)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -82,11 +80,11 @@ func (h *Handler) MonthlyTrend(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /dashboard/category-breakdown [get]
 func (h *Handler) CategoryBreakdown(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
-	res, err := h.svc.CategoryBreakdown(c.Request.Context(), role, userID, deptID, c.Query("month"))
+	res, err := h.svc.CategoryBreakdown(c.Request.Context(), role, userID, c.Query("month"))
 	if err != nil {
 		response.Err(c, err)
 		return

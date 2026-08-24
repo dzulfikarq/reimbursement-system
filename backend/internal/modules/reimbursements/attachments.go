@@ -26,8 +26,8 @@ func NewAttachmentStore(mc *minio.Client, presign *minio.Client, bucket string) 
 	return &AttachmentStore{mc: mc, presign: presign, bucket: bucket}
 }
 
-func (s *Service) AddAttachment(ctx context.Context, store *AttachmentStore, claimID uuid.UUID, role string, userID, deptID uuid.UUID, filename string, content []byte, mime string) (*AttachmentResponse, error) {
-	current, err := s.repo.GetDetail(ctx, claimID, role, userID, deptID)
+func (s *Service) AddAttachment(ctx context.Context, store *AttachmentStore, claimID uuid.UUID, role string, userID uuid.UUID, filename string, content []byte, mime string) (*AttachmentResponse, error) {
+	current, err := s.repo.GetDetail(ctx, claimID, role, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +72,12 @@ func (s *Service) AddAttachment(ctx context.Context, store *AttachmentStore, cla
 }
 
 // DownloadURL issues a 60-second presigned GET after re-checking scope.
-func (s *Service) DownloadURL(ctx context.Context, store *AttachmentStore, attID uuid.UUID, role string, userID, deptID uuid.UUID) (string, error) {
-	att, employeeID, employeeDeptID, _, err := s.repo.GetAttachment(ctx, attID)
+func (s *Service) DownloadURL(ctx context.Context, store *AttachmentStore, attID uuid.UUID, role string, userID uuid.UUID) (string, error) {
+	att, employeeID, _, err := s.repo.GetAttachment(ctx, attID)
 	if err != nil {
 		return "", err
 	}
-	if !canSee(role, userID, deptID, employeeID, employeeDeptID) {
+	if !canSee(role, userID, employeeID) {
 		return "", apperr.NotFound("Attachment not found")
 	}
 
@@ -90,12 +90,10 @@ func (s *Service) DownloadURL(ctx context.Context, store *AttachmentStore, attID
 }
 
 // Scope mirrors listing visibility (docs/02).
-func canSee(role string, userID, deptID, employeeID, employeeDeptID uuid.UUID) bool {
+func canSee(role string, userID, employeeID uuid.UUID) bool {
 	switch role {
-	case "finance", "admin":
+	case "manager", "finance", "admin":
 		return true
-	case "manager":
-		return userID == employeeID || (deptID != uuid.Nil && deptID == employeeDeptID)
 	default:
 		return userID == employeeID
 	}

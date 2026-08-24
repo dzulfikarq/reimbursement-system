@@ -19,7 +19,6 @@ reimbursement-system/
 │   │   ├── modules/
 │   │   │   ├── auth/               # handler.go service.go repository.go dto.go routes.go
 │   │   │   ├── user/
-│   │   │   ├── department/
 │   │   │   ├── category/
 │   │   │   ├── reimbursement/      # incl. state machine + policy engine
 │   │   │   ├── approval/           # matrix + step generation
@@ -48,7 +47,6 @@ reimbursement-system/
 │   │   │   ├── approvals/
 │   │   │   ├── payments/
 │   │   │   ├── dashboard/
-│   │   │   └── admin/              # users/departments/categories pages
 │   │   ├── components/ui/          # reusable inventory (doc 05)
 │   │   ├── components/layout/      # Sidebar, Topbar, shell
 │   │   ├── hooks/                  # useSession, useDebounce, etc.

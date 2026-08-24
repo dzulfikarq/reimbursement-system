@@ -1,18 +1,9 @@
 package dashboard
 
 type SummaryResponse struct {
-	PendingCount int64             `json:"pending_count"`
-	MonthlyTotal string            `json:"monthly_total"`
-	ApprovalRate *float64          `json:"approval_rate"`
-	BudgetUsage  []DepartmentUsage `json:"budget_usage"`
-}
-
-type DepartmentUsage struct {
-	DepartmentID   string  `json:"department_id"`
-	DepartmentName string  `json:"department_name"`
-	MonthlyBudget  string  `json:"monthly_budget"`
-	MonthlySpend   string  `json:"monthly_spend"`
-	UsedPercent    float64 `json:"used_percent"`
+	PendingCount int64    `json:"pending_count"`
+	MonthlyTotal string   `json:"monthly_total"`
+	ApprovalRate *float64 `json:"approval_rate"`
 }
 
 type TrendPoint struct {

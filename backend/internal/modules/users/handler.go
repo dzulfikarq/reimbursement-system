@@ -31,14 +31,13 @@ func RegisterRoutes(v1 *gin.RouterGroup, h *Handler, authn gin.HandlerFunc, admi
 // @Param limit query int false "Limit (max 100)"
 // @Param search query string false "Search name/email"
 // @Param role query string false "employee | manager | finance | admin"
-// @Param department_id query string false "Department UUID"
 // @Param sort query string false "name | email | role | is_active | created_at"
 // @Param order query string false "ASC | DESC"
 // @Success 200 {object} response.Envelope
 // @Router /users [get]
 func (h *Handler) List(c *gin.Context) {
 	p := listq.Parse(c, "created_at", sortWhitelist)
-	res, err := h.svc.List(c.Request.Context(), p, c.Query("role"), c.Query("department_id"))
+	res, err := h.svc.List(c.Request.Context(), p, c.Query("role"))
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -67,7 +66,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 // Update godoc
-// @Summary Update user role/department/name/is_active (admin)
+// @Summary Update user role/name/is_active (admin)
 // @Tags users
 // @Accept json
 // @Success 200 {object} response.Envelope

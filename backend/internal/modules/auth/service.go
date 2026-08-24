@@ -43,7 +43,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*UserResponse, s
 		return nil, "", "", apperr.Unauthorized("Invalid email or password")
 	}
 
-	access, err := jwtpkg.Sign(s.cfg.AppSecret, u.ID, u.Role, derefUUID(u.DepartmentID), u.Name, s.cfg.AccessTTL)
+	access, err := jwtpkg.Sign(s.cfg.AppSecret, u.ID, u.Role, u.Name, s.cfg.AccessTTL)
 	if err != nil {
 		return nil, "", "", apperr.Internal(err)
 	}
@@ -82,7 +82,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*UserRespon
 		return nil, "", "", apperr.Unauthorized("Account unavailable")
 	}
 
-	access, err := jwtpkg.Sign(s.cfg.AppSecret, u.ID, u.Role, derefUUID(u.DepartmentID), u.Name, s.cfg.AccessTTL)
+	access, err := jwtpkg.Sign(s.cfg.AppSecret, u.ID, u.Role, u.Name, s.cfg.AccessTTL)
 	if err != nil {
 		return nil, "", "", apperr.Internal(err)
 	}
@@ -115,22 +115,13 @@ func (s *Service) Me(ctx context.Context, userID uuid.UUID) (*UserResponse, erro
 }
 
 func (s *Service) toUserResponse(ctx context.Context, u *User) (*UserResponse, error) {
-	resp := &UserResponse{
-		ID:           u.ID.String(),
-		Name:         u.Name,
-		Email:        u.Email,
-		Role:         u.Role,
-		CreatedAt:    u.CreatedAt,
-	}
-	if u.DepartmentID != nil {
-		id := u.DepartmentID.String()
-		name, err := s.repo.DepartmentName(ctx, *u.DepartmentID)
-		if err == nil {
-			resp.DepartmentID = &id
-			resp.DepartmentName = &name
-		}
-	}
-	return resp, nil
+	return &UserResponse{
+		ID:        u.ID.String(),
+		Name:      u.Name,
+		Email:     u.Email,
+		Role:      u.Role,
+		CreatedAt: u.CreatedAt,
+	}, nil
 }
 
 func parseRefreshToken(tok string) (fam, jti, secret string, err error) {
@@ -139,11 +130,4 @@ func parseRefreshToken(tok string) (fam, jti, secret string, err error) {
 		return "", "", "", errors.New("malformed refresh token")
 	}
 	return parts[0], parts[1], parts[2], nil
-}
-
-func derefUUID(v *uuid.UUID) uuid.UUID {
-	if v == nil {
-		return uuid.Nil
-	}
-	return *v
 }

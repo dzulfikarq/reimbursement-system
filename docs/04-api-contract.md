@@ -58,25 +58,25 @@ List query contract: `?page=1&limit=20&search=&sort=created_at&order=desc&status
 | POST | `/auth/login` | none | `{email, password}` → sets HttpOnly cookies (`access_token`, `refresh_token`) + readable `csrf_token`; rate-limited per IP+email |
 | POST | `/auth/logout` | yes | Revokes refresh token (Redis), clears cookies → `204` |
 | POST | `/auth/refresh` | refresh cookie | Rotates both tokens; single-use refresh jti, race-safe |
-| GET | `/auth/me` | yes | Current user + role + department |
+| GET | `/auth/me` | yes | Current user + role |
 | GET | `/auth/csrf` | cookie | Issues fresh CSRF token |
 
 ### Master data
 
 | Method | Path | Who | Notes |
 |---|---|---|---|
-| GET | `/departments`, `/categories` | any authed | Needed for forms; search/pagination |
-| POST/PATCH/DELETE | `/departments/:id`, `/categories/:id` | Admin | Delete blocked when referenced → `409` |
-| GET | `/users` | Admin | Search, filter by role/department, pagination |
+| GET | `/categories` | any authed | Needed for forms; search/pagination |
+| POST/PATCH/DELETE | `/categories/:id` | Admin | Delete blocked when referenced → `409` |
+| GET | `/users` | Admin | Search, filter by role, pagination |
 | POST | `/users` | Admin | Creates user with initial password |
-| PATCH | `/users/:id` | Admin | Role/department/is_active changes |
+| PATCH | `/users/:id` | Admin | Role/is_active changes |
 | POST | `/users/:id/reset-password` | Admin | |
 
 ### Reimbursements
 
 | Method | Path | Who | Notes |
 |---|---|---|---|
-| GET | `/reimbursements` | scoped | Employee=own, Manager=department, Finance/Admin=all; full SFP |
+| GET | `/reimbursements` | scoped | Employee=own, Manager/Finance/Admin=all; full SFP |
 | POST | `/reimbursements` | employee+ | Creates DRAFT with items; amount computed server-side |
 | GET | `/reimbursements/:id` | owner/scope | Items + approval timeline + attachment metadata |
 | PATCH | `/reimbursements/:id` | owner | DRAFT/REJECTED only |
@@ -93,7 +93,7 @@ List query contract: `?page=1&limit=20&search=&sort=created_at&order=desc&status
 
 | Method | Path | Who |
 |---|---|---|
-| GET | `/dashboard/summary` | Role-scoped: pending count, monthly total, approval rate, budget usage |
+| GET | `/dashboard/summary` | Role-scoped: pending count, monthly total, approval rate |
 | GET | `/dashboard/monthly-trend?months=6` | Role-scoped series |
 | GET | `/dashboard/category-breakdown?month=` | Role-scoped |
 | GET | `/reports/export?month=&status=` | Finance/Admin → queues job, returns job id |
@@ -109,8 +109,7 @@ POST `/auth/login` → 200:
   "success": true,
   "data": {
     "user": {
-      "id": "uuid", "name": "Budi", "role": "employee",
-      "department": { "id": "uuid", "name": "Engineering" }
+      "id": "uuid", "name": "Budi", "role": "employee"
     }
   }
 }

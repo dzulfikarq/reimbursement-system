@@ -6,8 +6,6 @@ PostgreSQL 16 + GORM. Migrations as raw SQL via `golang-migrate` (full control o
 
 ```mermaid
 erDiagram
-    departments ||--o{ users : "has"
-    departments ||--o{ department_budgets : "budget per month"
     users ||--o{ reimbursements : "submits"
     categories ||--o{ reimbursements : "categorizes"
     reimbursements ||--o{ reimbursement_items : "contains"
@@ -16,16 +14,8 @@ erDiagram
     users ||--o{ approvals : "acts as approver"
     users ||--o{ audit_logs : "actor"
 
-    departments {
-        uuid id PK
-        varchar name UK
-        numeric monthly_budget
-        timestamptz created_at
-        timestamptz updated_at
-    }
     users {
         uuid id PK
-        uuid department_id FK
         varchar name
         citext email UK
         text password_hash
@@ -42,12 +32,6 @@ erDiagram
         boolean is_active
         timestamptz created_at
         timestamptz updated_at
-    }
-    department_budgets {
-        uuid id PK
-        uuid department_id FK
-        date period_month "first day of month, UNIQUE with dept"
-        numeric budget_amount
     }
     reimbursements {
         uuid id PK
@@ -133,7 +117,6 @@ CREATE INDEX idx_items_reimbursement ON reimbursement_items (reimbursement_id);
 
 -- integrity
 ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE (email);
-ALTER TABLE department_budgets ADD CONSTRAINT uq_budget_period UNIQUE (department_id, period_month);
 ALTER TABLE reimbursements ADD CONSTRAINT chk_amount_positive CHECK (amount > 0);
 ALTER TABLE approvals ADD CONSTRAINT uq_approval_step UNIQUE (reimbursement_id, step_number);
 ```

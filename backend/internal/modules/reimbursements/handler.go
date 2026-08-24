@@ -40,18 +40,16 @@ func RegisterRoutes(v1 *gin.RouterGroup, h *Handler, authn gin.HandlerFunc) {
 	v1.GET("/attachments/:id/download", authn, h.DownloadAttachment)
 }
 
-func identity(c *gin.Context) (role string, userID, deptID uuid.UUID, ok bool) {
+func identity(c *gin.Context) (role string, userID uuid.UUID, ok bool) {
 	role = c.GetString(middleware.CtxRole)
 	rawUser, _ := c.Get(middleware.CtxUserID)
-	rawDept, _ := c.Get(middleware.CtxDeptID)
 
 	u, userOK := rawUser.(uuid.UUID)
-	d, _ := rawDept.(uuid.UUID)
 	if !userOK {
 		c.Error(apperr.Unauthorized("Authentication required"))
-		return "", uuid.Nil, uuid.Nil, false
+		return "", uuid.Nil, false
 	}
-	return role, u, d, true
+	return role, u, true
 }
 
 func parseID(c *gin.Context) (uuid.UUID, bool) {
@@ -63,7 +61,7 @@ func parseID(c *gin.Context) (uuid.UUID, bool) {
 }
 
 // List godoc
-// @Summary List claims (scoped: employee=own, manager=department, finance/admin=all)
+// @Summary List claims (scoped: employee=own, manager/finance/admin=all)
 // @Tags reimbursements
 // @Param page query int false "Page"
 // @Param limit query int false "Limit (max 100)"
@@ -77,7 +75,7 @@ func parseID(c *gin.Context) (uuid.UUID, bool) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements [get]
 func (h *Handler) List(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -101,7 +99,7 @@ func (h *Handler) List(c *gin.Context) {
 	filters.DateFrom = c.Query("date_from")
 	filters.DateTo = c.Query("date_to")
 
-	res, err := h.svc.List(c.Request.Context(), p, filters, role, userID, deptID)
+	res, err := h.svc.List(c.Request.Context(), p, filters, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -116,7 +114,7 @@ func (h *Handler) List(c *gin.Context) {
 // @Success 201 {object} response.Envelope
 // @Router /reimbursements [post]
 func (h *Handler) Create(c *gin.Context) {
-	_, userID, _, ok := identity(c)
+	_, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -140,7 +138,7 @@ func (h *Handler) Create(c *gin.Context) {
 // @Failure 404 {object} response.Envelope
 // @Router /reimbursements/{id} [get]
 func (h *Handler) GetDetail(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -149,7 +147,7 @@ func (h *Handler) GetDetail(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	res, err := h.svc.GetDetail(c.Request.Context(), id, role, userID, deptID)
+	res, err := h.svc.GetDetail(c.Request.Context(), id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -164,7 +162,7 @@ func (h *Handler) GetDetail(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id} [patch]
 func (h *Handler) Update(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -178,7 +176,7 @@ func (h *Handler) Update(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	res, err := h.svc.Update(c.Request.Context(), id, req, role, userID, deptID)
+	res, err := h.svc.Update(c.Request.Context(), id, req, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -192,7 +190,7 @@ func (h *Handler) Update(c *gin.Context) {
 // @Success 204 {object} response.Envelope
 // @Router /reimbursements/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -201,7 +199,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	if err := h.svc.Delete(c.Request.Context(), id, role, userID, deptID); err != nil {
+	if err := h.svc.Delete(c.Request.Context(), id, role, userID); err != nil {
 		response.Err(c, err)
 		return
 	}
@@ -215,7 +213,7 @@ func (h *Handler) Delete(c *gin.Context) {
 // @Success 201 {object} response.Envelope
 // @Router /reimbursements/{id}/attachments [post]
 func (h *Handler) UploadAttachment(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -243,7 +241,7 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 		return
 	}
 
-	res, err := h.svc.AddAttachment(c.Request.Context(), h.store, id, role, userID, deptID, fileHeader.Filename, content, mime)
+	res, err := h.svc.AddAttachment(c.Request.Context(), h.store, id, role, userID, fileHeader.Filename, content, mime)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -259,7 +257,7 @@ func (h *Handler) UploadAttachment(c *gin.Context) {
 // @Failure 422 {object} response.Envelope "BUSINESS_RULE_VIOLATED with all violations"
 // @Router /reimbursements/{id}/submit [post]
 func (h *Handler) Submit(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -268,7 +266,7 @@ func (h *Handler) Submit(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	res, err := h.wf.Submit(c.Request.Context(), id, role, userID, deptID)
+	res, err := h.wf.Submit(c.Request.Context(), id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -282,7 +280,7 @@ func (h *Handler) Submit(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id}/approve [post]
 func (h *Handler) Approve(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -291,7 +289,7 @@ func (h *Handler) Approve(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	res, err := h.wf.Approve(c.Request.Context(), id, role, userID, deptID)
+	res, err := h.wf.Approve(c.Request.Context(), id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -306,7 +304,7 @@ func (h *Handler) Approve(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id}/reject [post]
 func (h *Handler) Reject(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -320,7 +318,7 @@ func (h *Handler) Reject(c *gin.Context) {
 		c.Error(err) // binding error surfaces note requirement via validator
 		return
 	}
-	res, err := h.wf.Reject(c.Request.Context(), id, role, userID, deptID, req.Note)
+	res, err := h.wf.Reject(c.Request.Context(), id, role, userID, req.Note)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -334,7 +332,7 @@ func (h *Handler) Reject(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -343,7 +341,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Claim not found"))
 		return
 	}
-	res, err := h.wf.Cancel(c.Request.Context(), id, role, userID, deptID)
+	res, err := h.wf.Cancel(c.Request.Context(), id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return
@@ -357,7 +355,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 // @Success 200 {object} response.Envelope
 // @Router /reimbursements/{id}/pay [post]
 func (h *Handler) Pay(c *gin.Context) {
-	role, userID, _, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -378,7 +376,7 @@ func (h *Handler) Pay(c *gin.Context) {
 // @Success 302 {string} 302 "redirect to MinIO"
 // @Router /attachments/{id}/download [get]
 func (h *Handler) DownloadAttachment(c *gin.Context) {
-	role, userID, deptID, ok := identity(c)
+	role, userID, ok := identity(c)
 	if !ok {
 		return
 	}
@@ -387,7 +385,7 @@ func (h *Handler) DownloadAttachment(c *gin.Context) {
 		response.Err(c, apperr.NotFound("Attachment not found"))
 		return
 	}
-	url, err := h.svc.DownloadURL(c.Request.Context(), h.store, id, role, userID, deptID)
+	url, err := h.svc.DownloadURL(c.Request.Context(), h.store, id, role, userID)
 	if err != nil {
 		response.Err(c, err)
 		return

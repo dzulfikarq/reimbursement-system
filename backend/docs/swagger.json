@@ -345,134 +345,7 @@
                 "tags": [
                     "dashboard"
                 ],
-                "summary": "Role-scoped dashboard: pending count, monthly total, approval rate, budget usage",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/departments": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "List departments",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page (default 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Limit (default 10, max 100)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search by name",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "name | created_at",
-                        "name": "sort",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "ASC | DESC",
-                        "name": "order",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Create department (admin)",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    }
-                }
-            }
-        },
-        "/departments/{id}": {
-            "get": {
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Get department by ID",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Delete department (admin) — blocked while referenced",
-                "responses": {
-                    "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_mumtaz_reimbursement-system_backend_internal_pkg_response.Envelope"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "departments"
-                ],
-                "summary": "Update department (admin)",
+                "summary": "Role-scoped dashboard: pending count, monthly total, approval rate",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -488,7 +361,7 @@
                 "tags": [
                     "reimbursements"
                 ],
-                "summary": "List claims (scoped: employee=own, manager=department, finance/admin=all)",
+                "summary": "List claims (scoped: employee=own, manager/finance/admin=all)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -827,12 +700,6 @@
                     },
                     {
                         "type": "string",
-                        "description": "Department UUID",
-                        "name": "department_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "name | email | role | is_active | created_at",
                         "name": "sort",
                         "in": "query"
@@ -879,7 +746,7 @@
                 "tags": [
                     "users"
                 ],
-                "summary": "Update user role/department/name/is_active (admin)",
+                "summary": "Update user role/name/is_active (admin)",
                 "responses": {
                     "200": {
                         "description": "OK",

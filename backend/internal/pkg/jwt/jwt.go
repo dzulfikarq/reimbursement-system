@@ -11,22 +11,20 @@ import (
 // Claims carried by the 15-minute access token. Stateless — middleware never
 // hits the DB to authenticate.
 type Claims struct {
-	UserID       uuid.UUID `json:"uid"`
-	Role         string    `json:"role"`
-	DepartmentID uuid.UUID `json:"dep,omitempty"`
-	Name         string    `json:"name"`
+	UserID uuid.UUID `json:"uid"`
+	Role   string    `json:"role"`
+	Name   string    `json:"name"`
 	jwt.RegisteredClaims
 }
 
 var ErrInvalid = errors.New("invalid token")
 
-func Sign(secret string, userID uuid.UUID, role string, deptID uuid.UUID, name string, ttl time.Duration) (string, error) {
+func Sign(secret string, userID uuid.UUID, role string, name string, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:       userID,
-		Role:         role,
-		DepartmentID: deptID,
-		Name:         name,
+		UserID: userID,
+		Role:   role,
+		Name:   name,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),

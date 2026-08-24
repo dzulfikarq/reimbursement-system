@@ -213,19 +213,10 @@ export function useUploadAttachment(id: string) {
 
 // --- dashboard ---
 
-export interface DepartmentUsage {
-  department_id: string;
-  department_name: string;
-  monthly_budget: string;
-  monthly_spend: string;
-  used_percent: number;
-}
-
 export interface DashboardSummary {
   pending_count: number;
   monthly_total: string;
   approval_rate: number | null;
-  budget_usage: DepartmentUsage[];
 }
 
 export function useDashboardSummary() {
