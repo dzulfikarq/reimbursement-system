@@ -6,8 +6,6 @@ export interface User {
   name: string;
   email: string;
   role: "employee" | "manager" | "finance" | "admin";
-  department_id?: string;
-  department_name?: string;
 }
 
 interface AuthState {

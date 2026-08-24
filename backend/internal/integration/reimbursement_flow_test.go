@@ -30,8 +30,7 @@ func TestClaimHappyPathToPaid(t *testing.T) {
 	_, finEmail := seedUser(t, "Happy Fin", "finance")
 	_, _ = empID, mgrID
 
-	// Manager & finance need to be in the same department for scope? Listing
-	// is scoped, but approve/pay only check role+turn — different depts OK.
+	// Approve/pay only check role+turn; listing scope is role-based.
 
 	emp := login(t, empEmail, testPassword)
 	code, out := emp.do(http.MethodPost, "/api/v1/reimbursements", claimPayload(catID, "Happy path", 2, "150000"), true)
