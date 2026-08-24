@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore } from "../../stores/ui";
+import { useAuthStore } from "../../stores/auth";
 
 interface NavItem {
   name: string;
@@ -47,13 +48,15 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export default function AppSidebar({ role }: { role?: string }) {
+export default function AppSidebar() {
   const sidebarExpanded = useUIStore((s) => s.sidebarExpanded);
   const sidebarMobileOpen = useUIStore((s) => s.sidebarMobileOpen);
+  const role = useAuthStore((s) => s.user?.role);
 
   const sections = NAV_SECTIONS.map((s) => ({
     ...s,
-    items: s.items.filter((item) => !role || item.roles.includes(role)),
+    // Default-deny: no role yet → nothing renders.
+    items: s.items.filter((item) => !!role && item.roles.includes(role)),
   })).filter((s) => s.items.length > 0);
 
   return (
